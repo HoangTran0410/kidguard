@@ -396,20 +396,24 @@ function setTab(b) {
     } catch (er) {
       delete e.pin; toast("err|" + t("errX", er.message)); if (k === cur) saveFail(true);
       bt.innerHTML = h0; bt.disabled = f.disabled = false; f.focus();   // the PIN stays typed: press again to retry
+      if (!f.isConnected && k === cur && $("#f-pin")) { $("#f-pin").value = p; $("#f-pin").focus(); }   // a poll redrew the tab meanwhile: the new field gets it back
     } finally { bt.removeAttribute("aria-busy"); }
   };
   bindCopy(); rpWire();
   if ($("#offRelay")) $("#offRelay").onclick = async () => {
-    if (!(await ask(t("relay.offAsk"), t("relay.off")))) return;
+    const k = cur;
+    if (!(await ask(t("relay.offAsk"), t("relay.off"))) || k !== cur) return;
     const r = await cmd({ type: "relay", url: "" }, t("turnedOff"), false);
-    if (r) { delete cur.relay; save(kids); refresh(); }
+    if (r) { delete k.relay; save(kids); if (k === cur) refresh(); }
   };
   if (lan) $("#saveRelay").onclick = async () => {
     const url = $("#relay").value.trim().replace(/\/+$/, "");
     if (!/^https:\/\//.test(url)) return toast("warn|" + t("relay.https"));
+    const k = cur;
     const r = await cmd({ type: "relay", url }, t("turnedOn"));
     if (r && r.token) {
-      cur.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids);
+      k.relay = { url: new URL(url).origin, id: r.id, token: r.token }; save(kids);
+      if (k !== cur || !$("#relayOut")) return;   // kid switched while the phone answered: the credentials stay with their own kid
       $("#relayOut").innerHTML = relayParentsHtml(); rpWire();
       refresh();   // st.relay + cur.relay now set: the Watch section (and others that need the relay) redraw with their inputs
     }
@@ -419,7 +423,7 @@ function setTab(b) {
     if (!/^[A-Za-z0-9_-]{10,300}$/.test(authKey)) return toast("warn|" + t("ts.badKey"));
     const r = await cmd({ type: "tailscale", authKey, hostname: $("#f-ts-host").value.trim() }, t("ts.installTx"));
     if (r && r.result && r.result !== "ok") toast("err|" + t("cmd.answer", r.result));
-    $("#f-ts-key").value = "";
+    if (r && (!r.result || r.result === "ok") && $("#f-ts-key")) $("#f-ts-key").value = "";
   };
   if ($("#tsInst")) $("#tsInst").onclick = () => cmd({ type: "tsInstall" }, t("ts.instSent"), false);
   if ($("#tsChk")) $("#tsChk").onclick = async () => { const b = $("#tsChk"), k = cur; b.disabled = true; try { await refresh1(); } catch {} if (k !== cur) return; tsChk = { k, at: Date.now() }; render(); };
@@ -604,13 +608,15 @@ function wPaint() {
     let n = "";
     const inp = `<input id="askWn" maxlength="30" value="${esc(x.dataset.wn)}" aria-label="${esc(t("watch.name"))}" style="width:100%;margin-bottom:12px">`;
     if (!(await ask(t("watch.renP"), t("rp.ren"), false, "", inp, () => !!(n = ($("#askWn") || {}).value?.trim() || "")))) return;
-    if (!n || n === x.dataset.wn) return;
-    try { const j = await rcall(cur, "/parents", "POST", { rename: x.dataset.wr, name: n }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); toast("ok|" + t("watch.renDone")); }
+    const k = cur;
+    if (!n || n === x.dataset.wn || k !== cur) return;
+    try { const j = await rcall(k, "/parents", "POST", { rename: x.dataset.wr, name: n }); if (j && j.parents) rpS = { k, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; if (k !== cur) return; rpPaint(); toast("ok|" + t("watch.renDone")); }
     catch (e) { toast("err|" + t("errX", e.message)); }
   });
   b.querySelectorAll("[data-wx]").forEach(x => x.onclick = async () => {
-    if (!(await ask(t("watch.offAsk", x.dataset.wn), t("watch.off"), true))) return;
-    try { const j = await rcall(cur, "/parents", "POST", { revoke: x.dataset.wx }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); wPaint(); toast("ok|" + t("watch.offDone")); }
+    const k = cur;
+    if (!(await ask(t("watch.offAsk", x.dataset.wn), t("watch.off"), true)) || k !== cur) return;
+    try { const j = await rcall(k, "/parents", "POST", { revoke: x.dataset.wx }); if (j && j.parents) rpS = { k, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; if (k !== cur) return; rpPaint(); wPaint(); toast("ok|" + t("watch.offDone")); }
     catch (e) { toast("err|" + t("errX", e.message)); }
   });
 }
@@ -692,12 +698,13 @@ function rpBind() {
     } catch (e) { toast("err|" + (e && e.message && e.message !== "x" ? e.message : t("rp.invFail"))); b.disabled = false; }
   };
   if ($("#rpRen")) $("#rpRen").onclick = async () => {
-    const name = $("#rpName").value.trim(); if (!name) return;
-    try { const j = await rcall(cur, "/parents", "POST", { name }); try { localStorage.setItem("kg.pname", name); } catch {} if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); toast("ok|" + t("rp.renDone")); } catch (e) { toast("err|" + e.message); }
+    const name = $("#rpName").value.trim(), k = cur; if (!name) return;
+    try { const j = await rcall(k, "/parents", "POST", { name }); try { localStorage.setItem("kg.pname", name); } catch {} if (j && j.parents) rpS = { k, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; if (k !== cur) return; rpPaint(); toast("ok|" + t("rp.renDone")); } catch (e) { toast("err|" + e.message); }
   };
   document.querySelectorAll("[data-rpx]").forEach(x => x.onclick = async () => {
-    if (!(await ask(t("rp.rmAsk", x.dataset.rpn), t("rp.rm"), true))) return;
-    try { const j = await rcall(cur, "/parents", "POST", { revoke: x.dataset.rpx }); if (j && j.parents) rpS = { k: cur, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; rpPaint(); toast("ok|" + t("rp.rmDone")); } catch (e) { toast("err|" + e.message); }
+    const k = cur;
+    if (!(await ask(t("rp.rmAsk", x.dataset.rpn), t("rp.rm"), true)) || k !== cur) return;
+    try { const j = await rcall(k, "/parents", "POST", { revoke: x.dataset.rpx }); if (j && j.parents) rpS = { k, at: Date.now(), list: j.parents, pinKnown: j.pinKnown }; if (k !== cur) return; rpPaint(); toast("ok|" + t("rp.rmDone")); } catch (e) { toast("err|" + e.message); }
   });
 }
 function bindCopy() {

@@ -1,5 +1,6 @@
 // KidGuard parent page, part of ui/index.html (classic script, shared globals, load order = the <script> tags there).
 // One page for both: served by the child phone on the LAN (/api/...) and by the relay worker (/c/<id>/...).
+if (typeof structuredClone !== "function") window.structuredClone = o => JSON.parse(JSON.stringify(o));   // Chrome < 98 (audit 2026-11-20); the state is plain JSON
 const $ = (s, el = document) => el.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 // `lang`, `L`, `LANGS`, `loadLang` come from lang.js (loaded first: only the active language's dictionary is fetched)
@@ -181,7 +182,8 @@ async function call1(k, path, method, body, again) {
   if (k.fb && k.via === "lan" && Date.now() - k.fb < 60000 && relayable(path, method)) { const j = await viaRelay(k, path, method, body); if (path === "/state" && k === cur) cachedAt = 0; return j; }
   let r; const t0 = Date.now();
   const rel = k.via !== "lan", out = rel ? wireOut(path, body) : body;
-  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: out ? JSON.stringify(out) : undefined, signal: direct(k) ? quick(15000) : undefined }); }
+  // relay writes time out (45 s): a half-dead PUT must fail so the save bar shows, not block putQ for minutes
+  try { r = await fetch(base(k) + path, { method, headers: { "X-KG-Token": k.token, "X-KG-Name": KG_NAME, "Content-Type": "application/json" }, body: out ? JSON.stringify(out) : undefined, signal: direct(k) ? quick(15000) : method === "GET" ? undefined : quick(45000) }); }
   catch (e) {
     // a browser on a network that filters one name of the shared relay: the other name, once (a fast failure only for a write)
     if (!APP && rel && !again && relayOf.swap(relayOf(k)) !== relayOf(k) && (method === "GET" || Date.now() - t0 < 3000)) { relayOf.alt = !relayOf.alt; return call1(k, path, method, body, 1); }
@@ -636,11 +638,13 @@ function anyWire() {
     busy(true, t("any.busy"));
     try {
       const ticket = anyHex(16), b = anyBase();
-      let r = await fetch(b + "/p/" + code + "/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ th: await anySha(ticket), newPin: a, pin: a, name }) });   // new phone: sets it; paired phone: checks it
+      let r = await fetch(b + "/p/" + code + "/join", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ th: await anySha(ticket), newPin: a, pin: a, name }), signal: quick(15000) });   // new phone: sets it; paired phone: checks it
       if (!r.ok) return fail(await r.json().catch(() => ({})));
       // the kid's phone answers within a few seconds while its screen is on; it keeps nothing until this page has the link
       for (let end = Date.now() + 45000; Date.now() < end; await wait(1500)) {
-        r = await fetch(b + "/p/" + code + "/result" + (APP ? "?kind=app" : ""), { headers: { "X-KG-Ticket": ticket } });
+        if (!go.isConnected) return;   // the parent left this screen: do not open the kid on top of whatever is showing now
+        r = await fetch(b + "/p/" + code + "/result" + (APP ? "?kind=app" : ""), { headers: { "X-KG-Ticket": ticket }, signal: quick(15000) });
+        if (!go.isConnected) return;
         const j = await r.json().catch(() => ({}));
         if (r.ok && j.token) return anyDone(j, name);
         if (!r.ok) return fail(j);

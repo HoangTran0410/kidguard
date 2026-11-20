@@ -21,7 +21,7 @@ function pinGate(a) {
     go.disabled = true; err.textContent = t("pinGate.wait"); clearTimeout(saveT);
     const k = cur, e = edit;
     try { e.pin = x; await putRules(k, e); if (k === cur) { lastSig = ""; render(); } }
-    catch (er) { delete e.pin; go.disabled = false; err.textContent = er.message; }
+    catch (er) { delete e.pin; go.disabled = false; err.textContent = er.message; toast("err|" + er.message); }
   };
 }
 
@@ -320,7 +320,7 @@ function expect(key, on, id) {
   const tick = async () => { if (!want[key] || k !== cur) return; await refresh().catch(() => {}); if (k !== cur) { delete want[key]; return; } updateLive(); if (want[key]) setTimeout(tick, 1000); else setTimeout(actPaint, 2600); };
   setTimeout(tick, 700);
 }
-function wantReset() { for (const k of Object.keys(want)) delete want[k]; liveOn.ring = liveOn.listen = null; flips.ring = flips.listen = 0; }
+function wantReset() { for (const k of Object.keys(want)) delete want[k]; for (const x of Object.keys(actSt)) delete actSt[x]; liveOn.ring = liveOn.listen = null; flips.ring = flips.listen = 0; }
 const ringOn = () => !!liveOn.ring;
 const earOn = () => !!liveOn.listen || !!earRtc || !!($("#earAudio") && $("#earAudio").getAttribute("src"));
 const ACT = { lock: ["lock", "lockScr"], wake: ["lightbulb", "wake"], ring: ["bell", "ring"], loc: ["map-pin", "locate"], loc2: ["map-pin", "where.locNew"], ear1: ["ear", "listen"] };
@@ -328,9 +328,12 @@ const ACT_TO = {};   // 20 s without an answer = error ("the phone did not answe
 // q: the confirm question ([text, ok, danger]); asked first, so the 20 s answer timer starts only once the parent agreed
 async function act(id, fn, q) {
   if (actSt[id] && actSt[id].s === "pend") return;
+  const k = cur;
   if (q && !(await ask(...q))) return;
+  if (cur !== k) return;
   actSt[id] = { s: "pend", t: Date.now() }; actPaint();
   const r = await Promise.race([fn(), new Promise(res => setTimeout(() => res(ACT_TO), 20000))]);
+  if (cur !== k) return;   // kid switched meanwhile: the new kid's buttons start clean
   if (r === ACT_TO) toast("err|" + t("act.timeout"));
   if (r && r !== ACT_TO && Object.values(want).some(w => w.id === id)) return actPaint();   // waiting for /state to confirm
   actSt[id] = r === undefined || r === ACT_TO ? { s: "err", t: Date.now() } : { s: r.result === "queued" ? "sent" : "done", t: Date.now() };

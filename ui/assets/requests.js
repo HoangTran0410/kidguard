@@ -193,25 +193,25 @@ const chatPend = {};
 // Older messages (the phone keeps 100, state carries 30): pulled a page at a time (tab-seen.js pullPage: LAN GET /chat or relay chatPull),
 // kept per kid while the page is open. chatMore: undefined = not asked yet (a full state tail may hide older ones), false = nothing older.
 const chatOld = {}, chatMore = {};
-let chatBusy = false;
+let chatBusy = "";   // id of the kid whose older page is loading
 function chatHasOlder() {
   const k = cur && cur.id, a = (st && st.chat) || [];
-  return !chatBusy ? (chatMore[k] === undefined ? a.length >= 30 : !!chatMore[k]) : false;
+  return chatBusy !== k ? (chatMore[k] === undefined ? a.length >= 30 : !!chatMore[k]) : false;
 }
 async function chatOlder() {
-  const k = cur; if (!k || chatBusy) return;
+  const k = cur; if (!k || chatBusy === k.id) return;
   const mine = [...(chatOld[k.id] || []), ...((st && st.chat) || [])], before = mine.length ? Math.min(...mine.map(m => m.t)) : 0;
-  chatBusy = true; chatDraw();
+  chatBusy = k.id; chatDraw();
   try {
     const r = await pullPage(k, "/chat", "chatPull", before), box = $("#chatBox"), h0 = box ? box.scrollHeight : 0, t0 = box ? box.scrollTop : 0;
     if (k !== cur) return;
     const have = new Set(mine.map(m => m.id)), add = ((r && r.chat) || []).filter(m => !have.has(m.id));
     chatOld[k.id] = [...(chatOld[k.id] || []), ...add].sort((a, b) => a.t - b.t);
     chatMore[k.id] = !!(r && r.more) && add.length > 0;
-    chatBusy = false; chatDraw();
+    if (chatBusy === k.id) chatBusy = ""; chatDraw();
     if (box) box.scrollTop = t0 + (box.scrollHeight - h0);   // stay where the reader was, the older ones grow above
   } catch (e) { toast("err|" + t("chat.olderFail", errSentence(e))); }
-  finally { chatBusy = false; chatDraw(); }
+  finally { if (chatBusy === k.id) chatBusy = ""; chatDraw(); }
 }
 const chatSeenKey = () => "kg.chat." + (cur && cur.id);
 function chatSeen() { try { return +localStorage.getItem(chatSeenKey()) || 0; } catch { return 0; } }
@@ -230,7 +230,7 @@ async function chatSelDel(ids) {
   let wf = false;
   const extra = files.length ? `<label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="selFiles"> ${esc(t("sel.chatFiles", files.length, fxSize(fsz)))}</label>` : "";
   const ok = await ask(cur.name + "\n" + t("sel.chatAsk", ids.length), t("sel.del"), true, "", extra, () => { wf = !!($("#selFiles") || {}).checked; return true; });
-  if (!ok) { msgSheet(true); return false; }
+  if (!ok) { if (!askAuto) msgSheet(true); return false; }   // askAuto: the page closed the dialog (kid switch, another dialog), not the parent
   const done = await selChunks(ids, c => cmd({ type: "chatDel", ids: c, ...(wf ? { files: true } : {}) }, t("sel.done", ids.length), false));
   if (done) { ids.forEach(i => chatHide.add(i)); if (wf) files.forEach(m => { chatGone.add(m.att.id); delete chatFull[attKey(m.att)]; delete chatTh[attKey(m.att)]; }); refresh(); }
   msgSheet(true);
@@ -314,7 +314,7 @@ function chatDraw() {
   box.classList.toggle("selmode", chatSel.on);
   const cmp = $("#cmpRow"), sb = $("#chatSelBar"); if (cmp && !rec.mr) cmp.hidden = chatSel.on;
   if (sb) { const h = selBar(chatSel); const sg = $("#chatSelB"); if (sg) sg.hidden = chatSel.on || !l.some(m => m.id && !m.local); if (sb.dataset.h !== h) { sb.dataset.h = h; sb.innerHTML = h; } }
-  const html = (chatHasOlder() || chatBusy ? `<button type="button" id="chatOld" class="sp" style="align-self:center;margin:2px 0 6px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "") + (l.length ? l.map((m, i) => (chatSel.on && m.id && !m.local && !m.job && (!i || selDayKey(m.t) !== selDayKey(l[i - 1].t)) ? selDayHead(chatSel, days.get(selDayKey(m.t)) || { key: selDayKey(m.t), ids: [] }, esc(selDayLabel(selDayKey(m.t)))) : "") + `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}${selCls(chatSel, m.id)}"${m.id && !m.local && !m.job ? ` data-sid="${esc(m.id)}"` : ""}${m.att && attOk(m.att) ? ` data-m="${esc(m.att.id)}"` : ""}>${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}${m.job ? chatJobHtml(m.job) : `${m.text ? `<span>${esc(m.text)}</span>` : ""}${attHtml(m)}${m.att && attOk(m.att) ? `<button type="button" class="cmo" data-menu="${esc(m.att.id)}" aria-label="${esc(t("chat.more"))}">${ic("ellipsis")}</button>` : ""}<i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i>`}</div>`).join("")
+  const html = (chatHasOlder() || chatBusy === cur.id ? `<button type="button" id="chatOld" class="sp" style="align-self:center;margin:2px 0 6px"${chatBusy === cur.id ? " disabled" : ""}>${ic("history")} ${t(chatBusy === cur.id ? "chat.olderBusy" : "chat.older")}</button>` : "") + (l.length ? l.map((m, i) => (chatSel.on && m.id && !m.local && !m.job && (!i || selDayKey(m.t) !== selDayKey(l[i - 1].t)) ? selDayHead(chatSel, days.get(selDayKey(m.t)) || { key: selDayKey(m.t), ids: [] }, esc(selDayLabel(selDayKey(m.t)))) : "") + `<div class="cb ${m.from === "k" ? "k" : "p"}${m.local ? " pend" : ""}${selCls(chatSel, m.id)}"${m.id && !m.local && !m.job ? ` data-sid="${esc(m.id)}"` : ""}${m.att && attOk(m.att) ? ` data-m="${esc(m.att.id)}"` : ""}>${m.from === "k" ? `<b>${esc(cur.name)}</b>` : m.who ? `<b>${esc(m.who)}</b>` : ""}${m.job ? chatJobHtml(m.job) : `${m.text ? `<span>${esc(m.text)}</span>` : ""}${attHtml(m)}${m.att && attOk(m.att) ? `<button type="button" class="cmo" data-menu="${esc(m.att.id)}" aria-label="${esc(t("chat.more"))}">${ic("ellipsis")}</button>` : ""}<i>${m.local ? t("chat.wait") : esc(evAt(m.t))}</i>`}</div>`).join("")
     : `<p class="mute" style="margin:auto;text-align:center">${t("chat.empty")}</p>`);
   const clr = $("#chatClr"); if (clr) clr.hidden = !((st && st.chat) || []).length;
   if (chatSel.on) { const mm = $("#chatMenu"); if (mm) mm.hidden = true; }
@@ -337,7 +337,7 @@ function attMenu(a, back) {
 }
 function attGet(a) { const b = chatFull[attKey(a)]; if (b) fxSave(b, a.name || "file"); else fxGet(a); }
 async function attDel(a, back) {
-  if (!(await ask(t("chat.delAsk", a.name || ""), t("fx.del"), true))) return back && back();
+  if (!(await ask(t("chat.delAsk", a.name || ""), t("fx.del"), true))) return askAuto ? undefined : back && back();
   const r = await cmd({ type: "chatFileDel", id: a.id }, t("chat.delDone"), false);
   if (r) { chatGone.add(a.id); delete chatFull[attKey(a)]; delete chatTh[attKey(a)]; }
   if (back) back();
@@ -374,7 +374,7 @@ const galSel = selNew({
   paint: () => galDraw(),
   del: async ids => {
     const sz = galSel.get().reduce((n, i) => n + (ids.includes(i.id) ? i.size : 0), 0);
-    if (!(await ask(cur.name + "\n" + t("sel.galAsk", ids.length, fxSize(sz)), t("sel.del"), true))) { galOpen({ size: gal.size }, true); return false; }
+    if (!(await ask(cur.name + "\n" + t("sel.galAsk", ids.length, fxSize(sz)), t("sel.del"), true))) { if (!askAuto) galOpen({ size: gal.size }, true); return false; }
     const done = await selChunks(ids, c => cmd({ type: "chatFileDel", ids: c }, t("sel.done", ids.length), false));
     if (done) { const set = new Set(ids); chatList().forEach(m => { if (m.att && set.has(m.att.id)) { chatGone.add(m.att.id); delete chatFull[attKey(m.att)]; delete chatTh[attKey(m.att)]; } }); refresh(); }
     galOpen({ size: gal.size }, true);
@@ -412,7 +412,7 @@ function galDraw() {
   const days = new Map(selDays(l).map(d => [d.key, d])), dh = (a, i, arr) => byDay && (!i || selDayKey(a.t) !== selDayKey(arr[i - 1].t)) ? selDayHead(S, days.get(selDayKey(a.t)), esc(selDayLabel(selDayKey(a.t)))) : "";
   const sel0 = l.length && !S.on ? `<div class="row" style="justify-content:flex-end">${selBtn(S)}</div>` : "";
   B.innerHTML = sel0 + (l.length ? (media.length ? `<div class="ggrid">${media.map((a, i) => dh(a, i, media) + tile(a)).join("")}</div>` : "") + (rest.length ? `<div class="glist">${rest.map((a, i) => dh(a, i, rest) + row(a)).join("")}</div>` : "") : `<p class="mute">${t("chat.galEmpty")}</p>`)
-    + (chatHasOlder() || chatBusy ? `<button type="button" id="galOld" class="sp" style="margin-top:10px"${chatBusy ? " disabled" : ""}>${ic("history")} ${t(chatBusy ? "chat.olderBusy" : "chat.older")}</button>` : "");
+    + (chatHasOlder() || chatBusy === cur.id ? `<button type="button" id="galOld" class="sp" style="margin-top:10px"${chatBusy === cur.id ? " disabled" : ""}>${ic("history")} ${t(chatBusy === cur.id ? "chat.olderBusy" : "chat.older")}</button>` : "");
   chatObs();
 }
 // ---- composer: attach menu + voice note (MediaRecorder; getUserMedia needs a secure context, like the video call: rtc.js can())
@@ -429,6 +429,7 @@ async function recStart() {
   let stream;
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
   catch { rec.starting = false; rec.held = false; return toast("err|" + t("chat.micDenied")); }
+  if (!$("#recBar")) { stream.getTracks().forEach(x => x.stop()); rec.starting = false; rec.held = false; return; }   // the chat sheet closed while the permission prompt was open
   const mt = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find(m => MediaRecorder.isTypeSupported(m));
   if (!mt) { stream.getTracks().forEach(x => x.stop()); rec.starting = false; rec.held = false; return toast("err|" + t("chat.micFail")); }
   const mr = new MediaRecorder(stream, { mimeType: mt }), kid = cur; rec.chunks = [];
@@ -450,7 +451,8 @@ function chatAttach(files) { if (files && files.length) { fxSend(files, { chat: 
 // attachments = the Files upload paths with chat=1 (the phone adds the chat entry); saved messages one tap away (same list as the watch)
 function msgSheet(keep) {
   if (!keep) { chatSel.on = false; chatSel.ids.clear(); chatSel.range = ""; }
-  const sid = setInterval(() => { if (!chatDraw()) clearInterval(sid); else refresh(); }, 4000);
+  clearInterval(msgSheet.iv);   // reopened within 4 s (delete confirm, menu "back"): one timer only
+  const sid = msgSheet.iv = setInterval(() => { if (!chatDraw()) clearInterval(sid); else refresh(); }, 4000);
   const sec = chatSecure(), noF = FXNO;
   const head = `<div class="shh"><h2 id="askT">${ic("message-square")} ${t("chat.title", esc(cur.name))}</h2><button type="button" class="close" id="chatMore" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(t("chat.more"))}">${ic("ellipsis")}</button><button type="button" class="close" id="askNo" aria-label="${esc(t("close"))}">${ic("x")}</button></div>
     <div id="chatMenu" class="pmenu phd" role="menu" hidden><button type="button" role="menuitem" id="chatGalB">${ic("image")} ${t("chat.gal")}</button><button type="button" role="menuitem" id="chatSelB" data-sel="start" hidden>${ic("check")} ${t("sel.start")}</button><button type="button" role="menuitem" id="chatClr" class="bad" hidden>${ic("trash-2")} ${t("chat.clear")}</button></div>`;
@@ -492,7 +494,7 @@ function msgSheet(keep) {
       pop.querySelector("#chatClr").onclick = async () => {
         let wf = false;
         const ok = await ask(cur.name + "\n" + t("ask.chatClear"), t("askOk.chatClear"), true, "", `<label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="clrFiles"> ${t("chat.clrFiles")}</label>`, () => { wf = !!($("#clrFiles") || {}).checked; return true; });
-        if (!ok) return msgSheet();
+        if (!ok) return askAuto ? undefined : msgSheet();
         const r = await cmd({ type: "chatClear", ...(wf ? { files: true } : {}) }, t("chat.cleared"), false);
         if (r) { const k = cur.id; chatOld[k] = []; chatMore[k] = undefined; chatPend[k] = []; if (st && r.result !== "queued") st.chat = []; refresh(); }   // relay "queued": the phone has not cleared yet, the thread stays until its state says so
         msgSheet();

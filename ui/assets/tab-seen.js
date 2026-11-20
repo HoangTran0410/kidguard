@@ -57,8 +57,9 @@ async function pullPage(k, lan, type, before) {
 }
 
 async function seenLoad(more) {
-  const k = cur; if (!k || seenX.busy) return;
-  if (seenX.k !== k) Object.assign(seenX, { k, err: "", done: false, access: true, on: true, more: false, next: 0, old: [] });
+  const k = cur; if (!k) return;
+  if (seenX.k !== k) Object.assign(seenX, { k, err: "", done: false, access: true, on: true, more: false, next: 0, old: [], busy: false });
+  if (seenX.busy) return;
   seenX.busy = true; seenX.err = ""; seenDraw();
   try {
     const j = await seenPull(k, more ? seenX.next : 0);
@@ -66,8 +67,8 @@ async function seenLoad(more) {
     seenX.on = j.on !== false; seenX.access = j.access !== false;
     seenX.old = more ? seenX.old.concat(j.items || []) : (j.items || []);
     seenX.more = !!j.more; seenX.next = +j.next || 0; seenX.done = true;
-  } catch (e) { seenX.err = e.message || String(e.raw || e); }
-  seenX.busy = false; seenDraw();
+  } catch (e) { if (seenX.k === k) seenX.err = e.message || String(e.raw || e); }
+  finally { if (seenX.k === k) seenX.busy = false; seenDraw(); }
 }
 
 function seenRow(x) {
@@ -212,16 +213,17 @@ snapGo.now = { k: null, html: "", busy: false, url: "" };
 // ---- Text messages (rule watch.sms): on demand, newest first, 30 a page (LAN GET /sms or relay smsPull + file channel) ----
 const smsX = { k: null, busy: false, err: "", done: false, access: true, more: false, rows: [] };
 async function smsLoad(more) {
-  const k = cur; if (!k || smsX.busy) return;
-  if (smsX.k !== k) Object.assign(smsX, { k, err: "", done: false, access: true, more: false, rows: [] });
+  const k = cur; if (!k) return;
+  if (smsX.k !== k) Object.assign(smsX, { k, err: "", done: false, access: true, more: false, rows: [], busy: false });
+  if (smsX.busy) return;
   smsX.busy = true; smsX.err = ""; smsDraw();
   try {
     const before = more && smsX.rows.length ? smsX.rows[smsX.rows.length - 1].t : 0;
     const j = await seenPull(k, before, true);
     if (smsX.k !== k) return;
     smsX.access = j.access !== false; smsX.rows = more ? smsX.rows.concat(j.sms || []) : (j.sms || []); smsX.more = !!j.more; smsX.done = true;
-  } catch (e) { smsX.err = e.message || String(e.raw || e); }
-  smsX.busy = false; smsDraw();
+  } catch (e) { if (smsX.k === k) smsX.err = e.message || String(e.raw || e); }
+  finally { if (smsX.k === k) smsX.busy = false; smsDraw(); }
 }
 function smsDraw() {
   const box = $("#seenSmsBox"); if (!box) return;
