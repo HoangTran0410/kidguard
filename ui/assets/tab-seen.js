@@ -163,10 +163,10 @@ function snapSel(id, v, opts) { return `<label class="row"><span class="sp">${t(
 function seenCamForm() {
   const o = snapOpts();
   return `<div style="margin-top:10px">${snapSel("cam", o.cam, ["front", "back"])}${snapSel("flash", o.flash, ["off", "on", "auto"])}${snapSel("size", o.size, ["small", "medium"])}${snapSel("delay", o.delay, [0, 1, 2, 3, 5])}
-    <button class="btn" id="snapGo" style="margin-top:10px"${snapGo.now.busy && snapGo.now.k === cur ? " disabled" : ""}>${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button>
+    <button class="btn" id="snapGo" style="margin-top:10px"${snapGo.of(cur).busy ? " disabled" : ""}>${ic("camera")} ${t("seen.cgo")}</button> <button class="sp" id="snapHistGo" style="margin-top:10px">${ic("history")} ${t("snap.hist")}</button>
     <div class="row" style="margin-top:12px;flex-wrap:wrap;gap:8px 12px"><button class="btn" id="camGo">${ic("video")} ${t("cam.go")}</button>
     <label class="row" style="margin:0"><input type="checkbox" id="cam-snd" ${o.snd ? "checked" : ""} onchange="snapSave()"><span>${t("cam.snd")}</span></label></div>
-    <p class="mute" style="margin:4px 0 0">${t(vcOk(cur) ? "cam.hint" : "cam.noRelay")}</p><div id="snapBox" class="mute" role="status" style="margin-top:8px">${snapGo.now.k === cur ? snapGo.now.html : ""}</div><div id="snapHist"></div></div>`;
+    <p class="mute" style="margin:4px 0 0">${t(vcOk(cur) ? "cam.hint" : "cam.noRelay")}</p><div id="snapBox" class="mute" role="status" style="margin-top:8px">${snapGo.of(cur).html}</div><div id="snapHist"></div></div>`;
 }
 function snapSave() {
   const v = id => $("#snap-" + id).value;
@@ -198,9 +198,9 @@ async function snapFetch(k, fid, relay) {
 // the result lives here, not in the box: the snap event redraws the tab while we wait (kid.js refresh), which
 // replaced #snapBox and the photo landed in a detached node (owner 2026-11-20: "phải bấm Tải lại mới thấy")
 async function snapGo() {
-  const k = cur, n = snapGo.now; if (!k || (n.busy && n.k === k)) return;
+  const k = cur; if (!k) return; const n = snapGo.of(k); if (n.busy) return;
   const show = (html, busy) => {
-    Object.assign(n, { k, html, busy });
+    Object.assign(n, { html, busy });
     document.querySelectorAll("#snapBox").forEach(b => { b.innerHTML = cur === k ? html : ""; });
     document.querySelectorAll("#snapGo").forEach(b => { b.disabled = busy && cur === k; });
   };
@@ -217,7 +217,9 @@ async function snapGo() {
     if (snapH.k === k) snapLoad(false);   // the history list gets the new photo
   } catch (e) { show(esc(/^snap:/.test(e.raw || "") ? tc("seen.cerr.", e.raw.slice(5).replace(/ /g, "_"), "") || t("seen.cerr.failed") : e.message || t("fx.e.failed")), false); }
 }
-snapGo.now = { k: null, html: "", busy: false, url: "" };
+// per kid: a photo pending on one kid must not replace another kid's box or its photo url
+snapGo.m = new WeakMap();
+snapGo.of = k => { let n = k && snapGo.m.get(k); if (!n) { n = { html: "", busy: false, url: "" }; if (k) snapGo.m.set(k, n); } return n; };
 
 // ---- Text messages (rule watch.sms): on demand, newest first, 30 a page (LAN GET /sms or relay smsPull + file channel) ----
 const smsX = { k: null, busy: false, err: "", done: false, access: true, more: false, rows: [] };

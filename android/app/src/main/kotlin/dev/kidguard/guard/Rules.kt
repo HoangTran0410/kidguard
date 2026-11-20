@@ -531,7 +531,10 @@ fun nowWhy(
 ): NowWhy {
     if (r.lostOn) return NowWhy("lost", 0)
     val minStart = nowMs - nowMs % 60_000L
-    fun at(endMinute: Int) = minStart + (((endMinute - minuteOfDay) % 1440 + 1440) % 1440).let { if (it == 0) 1440 else it } * 60_000L
+    val tz = java.util.TimeZone.getDefault()
+    // wall-clock end: a DST change in between moves the instant by the offset change (else "until" is 1 h off that day)
+    fun at(endMinute: Int) = (minStart + (((endMinute - minuteOfDay) % 1440 + 1440) % 1440).let { if (it == 0) 1440 else it } * 60_000L)
+        .let { u -> u + tz.getOffset(minStart) - tz.getOffset(u) }
     val pass = r.passUntil.takeIf { it > nowMs } ?: 0L
     val code = unlockUntil.takeIf { it > nowMs } ?: 0L
     if (pass > 0 || code > 0) return if (code > pass) NowWhy("code", code) else NowWhy("pass", pass)

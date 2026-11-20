@@ -370,6 +370,9 @@ function goList() {
   listScreen(kids.filter(k => k.via === "relay"));
 }
 addEventListener("popstate", () => {
+  // Back (parent app = WebView goBack) with a sheet / dialog open: close it and stay on this screen
+  // (the entry Back consumed comes back via go(1); its popstate is swallowed by navQuiet)
+  if (askDone && !navQuiet && !navSkip) { askDone(false, true); navQuiet = true; try { history.go(1); } catch { navQuiet = false; } return; }
   const l = navLvl(), s = history.state || {};
   if (typeof appSetOn !== "undefined" && appSetOn && !s.appSet) { appSetOn = false; return appBoot(); }
   if (addScreen.on && !s.add) { addScreen.on = false; if (!cur) return appBoot(); }   // left "Add a kid" (a kid opened from it keeps its entry)

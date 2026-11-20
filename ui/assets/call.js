@@ -18,11 +18,12 @@ async function vcStart() {
   vc = { k, id: vcId(), st: "prep", t0: 0, max: VC_MAX, mic: true, cam: true, kidCam: true, net: null };
   vcShow();
   try {
-    const j = await vcApi(k, "/call?ice=1");
-    if (!vc) return;
-    vc.c = await RTC.open({ ice: j.ice || [], video: true, local: $("#vcLocal"), remote: $("#vcRemote"),
-      onState: vcState, onMsg: vcMsg, onNet: n => { if (vc) { vc.net = n; vcPaint(); } } });
-    if (!vc) return;   // hung up while the camera was opening
+    const me = vc, j = await vcApi(k, "/call?ice=1");
+    if (vc !== me) return;
+    const c = await RTC.open({ ice: j.ice || [], video: true, local: $("#vcLocal"), remote: $("#vcRemote"),
+      onState: vcState, onMsg: vcMsg, onNet: n => { if (vc === me) { me.net = n; vcPaint(); } } });
+    if (vc !== me) return c.close();   // hung up while the camera was opening: release camera + mic
+    vc.c = c;
     vc.cam = vc.c.hasVideo;
     const r = await vcApi(k, "/call", "POST", { op: "offer", id: vc.id, sdp: vc.c.sdp });
     vc.st = "ring"; vcPaint();

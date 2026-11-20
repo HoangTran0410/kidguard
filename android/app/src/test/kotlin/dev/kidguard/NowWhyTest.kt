@@ -26,6 +26,18 @@ class NowWhyTest {
         assertEquals("", nw(r, 12 * 60).why)
     }
 
+    @Test fun untilIsWallClockAcrossDst() {
+        val old = java.util.TimeZone.getDefault()
+        try {
+            java.util.TimeZone.setDefault(java.util.TimeZone.getTimeZone("Europe/Berlin"))   // 2026-03-29 02:00 -> 03:00
+            val z = java.time.ZoneId.of("Europe/Berlin")
+            val now = java.time.ZonedDateTime.of(2026, 3, 28, 22, 0, 0, 0, z).toInstant().toEpochMilli()
+            val end = java.time.ZonedDateTime.of(2026, 3, 29, 6, 30, 0, 0, z).toInstant().toEpochMilli()
+            val a = nowWhy(Rules(bedtimeOn = true, bedStart = "21:30", bedEnd = "06:30"), 22 * 60, now, "2026-03-28", emptyMap(), apps, prot)
+            assertEquals("bedtime", a.why); assertEquals(end, a.until)
+        } finally { java.util.TimeZone.setDefault(old) }
+    }
+
     @Test fun scheduleHasNameAndEnd() {
         val r = Rules(schedules = listOf(Schedule("Học", true, (1..7).toSet(), "13:00", "15:00")))
         val a = nw(r, 14 * 60)

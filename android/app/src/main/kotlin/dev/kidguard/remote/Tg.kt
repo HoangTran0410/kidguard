@@ -752,7 +752,11 @@ object Tg {
         alerts.execute {
             try {
                 val (t0, id0) = s.tg.notifAt
-                if (t0 == 0L) { s.tg.notifAt = System.currentTimeMillis() to Long.MAX_VALUE; return@execute }   // just started: nothing from before
+                val now = System.currentTimeMillis()
+                if (t0 == 0L) { s.tg.notifAt = now to Long.MAX_VALUE; return@execute }   // just started: nothing from before
+                // the clock went back (auto time after running ahead, RTC reset): new rows get t below the cursor and would
+                // wait until the clock passes it. Rows from before the jump all have t > now, so (now - 15 s) skips none of them twice.
+                if (t0 > now + 60_000L) { s.tg.notifAt = (now - 15_000L) to 0L; return@execute }
                 val (rows, next) = NotifSync.tgAfter(g, t0, id0, TgLogic.NOTIF_PAGE)
                 if (next == null) return@execute
                 var n = 0
