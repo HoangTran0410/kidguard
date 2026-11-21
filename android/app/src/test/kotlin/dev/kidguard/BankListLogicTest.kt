@@ -68,4 +68,10 @@ class BankListLogicTest {
         assertTrue("com.mservice.momotransfer" in list)
         assertEquals(setOf("vms.com.vn.mymobifone"), BankListLogic.merge(setOf("vms.com.vn.mymobifone"), seen, l.tcp, emptySet()).first)
     }
+    @Test fun vneidIsBundledForAllThree() {   // owner 2026-11-21
+        assertTrue("com.vnid" in AccPauseLogic.DEFAULT); assertTrue("com.vnid" in DevPauseLogic.DEFAULT); assertTrue("com.vnid" in DevPauseLogic.TCP_DEFAULT)
+        // an old phone (no tcpSeen) gets the newer bundled ones once
+        val (list, _) = BankListLogic.merge(setOf("vms.com.vn.mymobifone"), DevPauseLogic.TCP_LEGACY, DevPauseLogic.TCP_DEFAULT, emptySet())
+        assertTrue("com.vnid" in list && "com.mservice.momotransfer" in list)
+    }
 }

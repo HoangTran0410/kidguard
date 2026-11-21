@@ -137,6 +137,14 @@
    "vpn": false,
    "dev": true,
    "tcp": true
+  },
+  {
+   "pkg": "com.vnid",
+   "name": "VNeID",
+   "acc": true,
+   "vpn": false,
+   "dev": true,
+   "tcp": true
   }
  ],
  "drop": []

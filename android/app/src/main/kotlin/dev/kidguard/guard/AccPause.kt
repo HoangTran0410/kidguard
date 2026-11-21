@@ -47,6 +47,7 @@ object AccPauseLogic {
     /** Vietnamese banks / wallets (package names from their Play Store pages; parents edit the list on the page). */
     val DEFAULT: Set<String> = setOf(
         "com.VCB",                          // Vietcombank
+        "com.vnid",                         // VNeID (owner 2026-11-21: accessibility + debugging + adb port)
         "com.vnpay.bidv",                   // BIDV SmartBanking
         "com.vietinbank.ipay",              // VietinBank iPay
         "com.vnpay.Agribank3g",             // Agribank E-Mobile Banking

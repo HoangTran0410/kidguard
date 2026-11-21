@@ -48,7 +48,7 @@ object BankList {
         // debugging list (split from accessibility 2026-11-11): bundled + website `dev`, same add-once rule
         val (dev, devSeen) = BankListLogic.merge(r.devPause, s.devSeen ?: emptySet(), l.dev, l.drop)
         // adb-port list (2026-11-20, MoMo): same add-once rule; phones before it start from the bundled default as seen
-        val (tcp, tcpSeen) = BankListLogic.merge(r.tcpPause, s.tcpSeen ?: DevPauseLogic.TCP_DEFAULT, l.tcp, l.drop)
+        val (tcp, tcpSeen) = BankListLogic.merge(r.tcpPause, s.tcpSeen ?: DevPauseLogic.TCP_LEGACY, l.tcp, l.drop)
         s.bankSeen = accSeen; s.vpnSeen = vpnSeen; s.devSeen = devSeen; s.tcpSeen = tcpSeen
         if (acc == r.accPause && vpn == r.vpnPause && dev == r.devPause && tcp == r.tcpPause) return
         g.setRules(r.copy(accPause = acc, vpnPause = vpn, devPause = dev, tcpPause = tcp, rev = maxOf(r.rev + 1, System.currentTimeMillis())))
