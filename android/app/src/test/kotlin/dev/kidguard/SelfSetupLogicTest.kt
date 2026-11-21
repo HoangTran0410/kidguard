@@ -4,6 +4,9 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class SelfSetupLogicTest {
+    @Test fun xiaomiSecuritySwitchReadBeforeTheRun() {   // 2026-11-21 owner, Redmi Note 13 HyperOS 2
+        assertTrue(SelfSetupLogic.xiaomiSecOff("0\n")); assertFalse(SelfSetupLogic.xiaomiSecOff("1")); assertFalse(SelfSetupLogic.xiaomiSecOff(""))
+    }
     @Test fun xiaomiShellBlockIsNamedAndTraceCut() {   // 2026-11-19 owner: a Xiaomi phone, Self setup showed the whole stack trace
         val out = "Exception occurred while executing 'set-active-admin':\njava.lang.SecurityException: Calling identity is not authorized\n\tat com.android.internal.util.Preconditions.checkCallAuthorization(Preconditions.java:254)"
         assertTrue(SelfSetupLogic.secBlocked(out))

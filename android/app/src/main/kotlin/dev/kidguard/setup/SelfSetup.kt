@@ -137,6 +137,11 @@ object SelfSetupLogic {
      *  set-active-admin`, 2026-11-19 owner report). Xiaomi / Redmi / POCO do this until "USB debugging (Security settings)" is on. */
     fun secBlocked(out: String) = "not authorized" in out.lowercase()
 
+    /** Xiaomi "USB debugging (Security settings)" off: `getprop persist.security.adbinput` says "0" (2026-11-21, Redmi Note 13
+     *  HyperOS 2: the run started before the switch was on, set-active-admin refused; the same command worked once it read 1).
+     *  Empty = not MIUI / HyperOS, or a build without the property: don't guess, run as before. */
+    fun xiaomiSecOff(prop: String) = prop.trim() == "0"
+
     /** A failed command's output for the screen / notification: first line only (no Java stack trace), at most 200 chars. */
     fun firstLine(out: String): String {
         val lines = out.trim().lineSequence().map { it.trim() }.filter { it.isNotBlank() && !it.startsWith("at ") }.toList()
@@ -384,6 +389,11 @@ object SelfSetup {
             else if (plan.disable.isNotEmpty()) { restartForAccounts(app, plan.disable, ::sh); return }
         }
         state[1] = STEP_OK
+        // Xiaomi: the shell can't add an admin or grant until "USB debugging (Security settings)" is on: say so before any step
+        if (SelfSetupLogic.xiaomiSecOff(runCatching { sh("getprop persist.security.adbinput") }.getOrDefault(""))) {
+            state[2] = STEP_ERR; message = app.getString(R.string.ss_sec_debug)
+            notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
+        }
         // Android 13+ "restricted settings": an APK installed from a browser / file manager may not get device admin or accessibility, even over adb (2026-11-19, set-active-admin -> "Calling identity is not authorized"). adb can lift it; harmless elsewhere.
         runCatching { Log.i(AdbPortFinder.TAG, "restricted settings -> " + sh("appops set $PKG ACCESS_RESTRICTED_SETTINGS allow")) }
         // 3..7 (same as setup.sh, minus install)
