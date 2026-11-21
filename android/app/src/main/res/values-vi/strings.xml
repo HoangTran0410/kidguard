@@ -360,7 +360,7 @@
     <string name="ss_code_6">Mã phải đủ 6 số</string>
     <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
     <string name="ssa_old">Máy dùng Android %1$s (dưới 11), không tự cài được. Cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
-    <string name="ssa_dev_first">Làm bước 1 trước: bấm 7 lần Số hiệu bản tạo</string>
+    <string name="ssa_dev_first">Làm bước 1 trước: bấm 7 lần Số hiệu bản tạo (Xiaomi/Poco: Phiên bản OS)</string>
     <string name="ssa_s1_ok">Đã bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s2_ok">Gỡ lỗi không dây đang bật</string>
     <string name="ssa_need_wifi">Máy chưa dùng Wi-Fi. Vào Wi-Fi, rồi bật Gỡ lỗi không dây (4G không được).</string>
@@ -372,7 +372,7 @@
     <string name="ssa_basic_intro">Máy tự nối với chính nó qua Gỡ lỗi không dây (cần Wi-Fi), rồi tự bật mọi quyền: Trợ năng, thời gian dùng app, pin, vị trí, thông báo. Mọi tài khoản giữ nguyên, không khởi động lại. Làm 2 bước:</string>
     <string name="ss_basic_chosen">xoá tài khoản Google, Samsung, Xiaomi rồi chạy lại Tự cài, chọn Device Owner.</string>
     <string name="ssa_s1">Bước 1. Bật Tuỳ chọn nhà phát triển</string>
-    <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\" (Build number).</string>
+    <string name="ssa_s1_d">Vào Giới thiệu về điện thoại, bấm 7 lần vào \"Số hiệu bản tạo\". Xiaomi/Poco: bấm \"Phiên bản OS\" (hoặc \"Phiên bản MIUI\"). Samsung: trong \"Thông tin phần mềm\".</string>
     <string name="ssa_s1_btn">Mở Giới thiệu về điện thoại</string>
     <string name="ssa_pm">Bước 2. Bật \"Tắt giám sát quyền\"</string>
     <string name="ssa_pm_d">Oppo, Realme, OnePlus cần bật, không thì cài dừng ở quyền dữ liệu sử dụng. Đây là mục cuối trong Tuỳ chọn nhà phát triển.</string>
