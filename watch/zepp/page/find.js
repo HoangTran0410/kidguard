@@ -22,6 +22,18 @@ function bearing(la1, lo1, la2, lo2) {
   return ((Math.atan2(y, x) * 180) / Math.PI + 360) % 360;
 }
 
+const D8 = { N: 0, NE: 45, E: 90, SE: 135, S: 180, SW: 225, W: 270, NW: 315 };
+const adiff = (x, y) => { const d = Math.abs(x - y) % 360; return Math.min(d, 360 - d); };
+// true = the angle runs anticlockwise (use 360 - a), false = as documented, null = can't tell (N / S, or no 8-way value)
+function cmpMirror(a, dir) {
+  const c = D8[dir];
+  if (c == null) return null;
+  const plain = adiff(a, c), flip = adiff(360 - a, c);
+  if (flip + 40 < plain) return true;
+  if (plain + 40 < flip) return false;
+  return null;
+}
+
 function dist(la1, lo1, la2, lo2) {
   const dp = rad(la2 - la1), dl = rad(lo2 - lo1);
   const a = Math.sin(dp / 2) ** 2 + Math.cos(rad(la1)) * Math.cos(rad(la2)) * Math.sin(dl / 2) ** 2;
@@ -153,7 +165,13 @@ Page(
       try {
         const a = this.cmp ? this.cmp.getDirectionAngle() : "INVALID";
         this.calib = this.cmp ? !!this.cmp.getStatus() : false;
-        this.head = typeof a === "number" ? a : null;
+        if (typeof a === "number") {
+          // the docs say clockwise from north; owner 2026-11-21: "the arrow points the wrong way". The 8-way getDirection()
+          // is checked against the angle: when 360 - a matches it clearly better the firmware counts the other way round
+          const m = cmpMirror(a, this.cmp.getDirection());
+          if (m != null) this.mirror = m;
+          this.head = this.mirror ? (360 - a) % 360 : a;
+        } else this.head = null;
       } catch (e) { this.head = null; }
       this.draw(false);
     },
