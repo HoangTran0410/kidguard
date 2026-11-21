@@ -156,7 +156,7 @@ At home the parent page talks to the kid's phone over Wi-Fi. When the kid is at 
 | Setup | ~2 min: make a bot, paste its token | ~5 min, once: Tailscale app on the parent's phone + paste one key | none | ~3 min on a computer: run one script (needs Node.js) |
 | Used with | the Telegram app (buttons) | the parent page | the parent page, any browser | the parent page, any browser |
 | Speed | ~1 s | instant (direct connection) | usually a few seconds (live socket); fallback poll ~20 s, ~60 s with the screen off | same |
-| Screen / listen | screenshot, 10-60 s recording | live screen, live listen | live screen, no listen | live screen, no listen |
+| Screen / listen | screenshot, camera photo, 5-30 s video, 5-60 s recording | live screen + camera, live listen, record any of them in the page | same | same |
 | SOS / more-time alerts | instant in Telegram | page / parent app | page / parent app | page / parent app |
 | Your data goes through | Telegram's servers | nobody (end-to-end encrypted, peer to peer) | the author's Cloudflare account | only your own Cloudflare account |
 | Needs | internet on the kid's phone; one bot per kid | Device Owner (not basic mode) | nothing | nothing |

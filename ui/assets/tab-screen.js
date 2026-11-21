@@ -3,7 +3,7 @@
 // Runs independently of the 4 s state poll (refresh() never redraws the screen tab).
 // on: the kid the parent pressed "Start viewing" for (owner 2026-11-20: opening the tab must not start it; leaving the tab ends it)
 // k: the kid frames are being asked from now (screenStop tells that phone to stop at once)
-const scr = { gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false, blob: null, idle: false, on: null, k: null };   // off: the last frame answer was "screen off"
+const scr = { rec: null, gen: 0, url: null, seq: 0, frames: [], lat: 0, liveT: null, view: false, err: "", msg: "", off: false, blob: null, idle: false, on: null, k: null };   // off: the last frame answer was "screen off"
 // Nobody touched the page for 5 min: stop asking for frames (the kid's phone keeps capturing and uploading as long as we ask,
 // and its "a parent is watching" notice stays up). One button brings the picture back.
 const SCR_IDLE = 300000;
@@ -24,9 +24,37 @@ function showFrame(blob, lat) {
   const img = $("#s-img"); if (img) img.src = scr.url;
   if (old) URL.revokeObjectURL(old);
   if (!scr.blob) { scr.blob = blob; screenCtl(); } else scr.blob = blob;
+  scr.recDraw();
   scr.lat = lat; scr.frames.push(performance.now()); screenMsg(""); screenStat(); if (scr.off) { scr.off = false; screenCtl(); }
 }
+// Record (vrec, call.js): each frame is drawn on a canvas, the canvas stream is recorded; stops with the viewing (file saved then)
+scr.recDraw = () => {   // from the <img> (already decoded for the screen), not the blob again
+  const r = scr.rec, img = $("#s-img"); if (!r || !img) return;
+  img.decode().then(() => { if (scr.rec === r && img.naturalWidth) r.cx.drawImage(img, 0, 0, r.cv.width, r.cv.height); }).catch(() => {});
+}
+scr.recBtn = () => {
+  const b = $("#s-rec"); if (!b) return;
+  b.hidden = !vrec.can(true);
+  b.disabled = !scr.rec && !(scr.blob && scr.on === cur && !scr.idle);
+  b.setAttribute("aria-pressed", String(!!scr.rec));
+  const h = `${ic(scr.rec ? "square" : "circle")} ${scr.rec ? t("rec.on", vrec.mm(Date.now() - scr.rec.t0)) : t("rec.start")}`;
+  if (b.innerHTML !== h) b.innerHTML = h;
+}
+scr.recToggle = async () => {
+  if (scr.rec) return scr.rec.stop();
+  if (!scr.blob || scr.on !== cur || !vrec.can(true)) return;
+  const img = $("#s-img"); if (!img) return;
+  try { await img.decode(); } catch {}
+  if (!img.naturalWidth || scr.rec) return;
+  const cv = document.createElement("canvas"); cv.width = img.naturalWidth; cv.height = img.naturalHeight;
+  const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0);
+  const r = vrec.start(cv.captureStream(10), vrec.name(cur, "screen"), () => { if (scr.rec === o) scr.rec = null; clearInterval(o.tick); scr.recBtn(); });
+  if (!r) return;
+  const o = Object.assign(r, { cv, cx, tick: setInterval(scr.recBtn, 1000) });
+  scr.rec = o; actAt = Date.now(); scr.recBtn();
+}
 function screenStop() {
+  if (scr.rec) scr.rec.stop();   // saves what was recorded
   scr.gen++; clearInterval(scr.liveT); scr.liveT = null;
   // the phone stops capturing and drops its "parent is watching" notice now (0.9.60), not 20-45 s later
   const k = scr.k, ws = scr.ws; scr.k = null; scr.ws = null;
@@ -69,7 +97,8 @@ function screenStart() {
   // a redraw of the tab (state changed) is not somebody watching: stay paused until a tap / key (they move actAt)
   if (scr.idle && Date.now() - actAt >= SCR_IDLE) { screenCtl(); return; }
   if (scr.idle) { scr.idle = false; screenCtl(); }
-  const idle = () => { if (Date.now() - actAt < SCR_IDLE) return false; if (scr.gen === gen) screenIdle(); return true; };
+  // recording = somebody wants the picture: never idle
+  const idle = () => { if (scr.rec || Date.now() - actAt < SCR_IDLE) return false; if (scr.gen === gen) screenIdle(); return true; };
   const img = $("#s-img"); if (img && scr.url) img.src = scr.url;
   screenMsg(scr.msg || t("connecting"));
   const alive = () => scr.gen === gen && tab === "screen";
@@ -138,6 +167,7 @@ function screenCtl() {
   so.hidden = !off; $("#s-box").classList.toggle("off", off);
   const si = $("#s-idle"); if (si) si.hidden = !scr.idle || off;
   const sv = $("#s-save"); if (sv) sv.disabled = !scr.blob;
+  scr.recBtn();
   document.querySelectorAll("#s-btns button, #s-nav button").forEach(x => x.disabled = lock);
   $("#f-stxt").disabled = lock; $("#s-send").disabled = lock || !$("#f-stxt").value;
   if (off && on) actPaint();
@@ -162,7 +192,7 @@ function screenTab(b) {
     <div class="alert info" id="s-idle" hidden style="margin-top:10px">${ic("pause")}<span class="sp">${t("scr.idle")}</span><button type="button" id="s-resume" class="pri">${ic("play")} ${t("scr.resume")}</button></div>
     <div class="scr ${scr.view ? "view" : ""}" id="s-box" style="margin-top:10px"><img id="s-img" alt="${esc(t("scr.h"))}" draggable="false"><div class="scr-msg" id="s-msg"></div><svg class="gst" id="s-gst" aria-hidden="true"></svg></div>
     <div class="snav" id="s-nav" role="group" aria-label="${esc(t("key.nav"))}"><button data-key="back" aria-label="${esc(t("back"))}" title="${esc(t("back"))}">${ic("arrow-left")}</button><button data-key="home" aria-label="${esc(t("key.home"))}" title="${esc(t("key.home"))}">${ic("circle")}</button><button data-key="recents" aria-label="${esc(t("key.recents"))}" title="${esc(t("key.recents"))}">${ic("square")}</button></div>
-    <div class="row" style="margin:4px 0"><span class="mute sp" id="s-stat"></span><button type="button" id="s-save" class="sm" disabled>${ic("download")} ${t("scr.save")}</button></div>
+    <div class="row" style="margin:4px 0;flex-wrap:wrap;gap:6px"><span class="mute sp" id="s-stat" style="flex-basis:100%"></span><button type="button" id="s-rec" class="sm" aria-pressed="false" disabled hidden></button><button type="button" id="s-save" class="sm" disabled>${ic("download")} ${t("scr.save")}</button></div>
     <div class="spad" id="s-btns">
       <div class="swp" role="group" aria-label="${esc(t("swp.h"))}"><span class="slab2">${t("swp.h")}</span>
         <button data-sw="up" class="u" aria-label="${esc(t("swp.up"))}" title="${esc(t("swp.up"))}">${ic("arrow-up")}</button>
@@ -219,7 +249,7 @@ function screenTab(b) {
   tx.onkeydown = e => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); send(); } };
   $("#s-send").onclick = send;
   $("#s-resume").onclick = () => screenStart();
-  $("#s-go").onclick = scr.go; $("#s-stop").onclick = scr.end;
+  $("#s-go").onclick = scr.go; $("#s-stop").onclick = scr.end; $("#s-rec").onclick = scr.recToggle;
   // keeps the frame on screen now (a later frame replaces scr.blob, not this copy)
   $("#s-save").onclick = () => { const b = scr.blob; if (!b) return; const d = new Date(), p = n => String(n).padStart(2, "0");
     fxSave(b, `kidguard-${(cur && cur.name || "kid").replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 30)}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}.jpg`); toast("ok|" + t("scr.saved")); };

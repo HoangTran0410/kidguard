@@ -2,6 +2,30 @@
 // straight to the kid's phone. Needs a secure page (relay https, or the parent app's 127.0.0.1): a LAN http page cannot open the camera.
 const VC_MAX = 15 * 60e3, VC_HIDDEN = 60e3;
 let vc = null;   // the call on screen: { k, via, id, c (RTC call), st, t0, max, ... }
+// Record a live picture in this page (owner 2026-11-21): the live camera's WebRTC stream, or the live screen's frames drawn on a
+// canvas. The phone sends nothing more; the file is saved here when the recording stops (button, end, page hidden).
+const vrec = {
+  can: (canvas) => !!(window.MediaRecorder && (!canvas || HTMLCanvasElement.prototype.captureStream)),
+  start(stream, name, onStop) {
+    const m = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"].find(x => MediaRecorder.isTypeSupported(x)) || "";
+    let mr; try { mr = new MediaRecorder(stream, m ? { mimeType: m, videoBitsPerSecond: 1500000 } : undefined); } catch { toast("warn|" + t("rec.unsup")); return null; }
+    const parts = [], r = { t0: Date.now(), stop: () => { if (mr.state !== "inactive") try { mr.stop(); } catch {} } };
+    mr.ondataavailable = e => { if (e.data && e.data.size) parts.push(e.data); };
+    mr.onstop = () => {
+      if (onStop) onStop();
+      if (!parts.length) return;
+      const type = mr.mimeType || m || "video/webm";
+      fxSave(new Blob(parts, { type }), name + "." + (/mp4/.test(type) ? "mp4" : "webm")); toast("ok|" + t("rec.saved"));
+    };
+    try { mr.start(1000); } catch { toast("warn|" + t("rec.unsup")); return null; }
+    return r;
+  },
+  name(k, what) {
+    const d = new Date(), p = n => String(n).padStart(2, "0");
+    return `kidguard-${(k && k.name || "kid").replace(/[^\p{L}\p{N}_-]+/gu, "_").slice(0, 30)}-${what}-${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+  },
+  mm: (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); },
+};
 
 // Signal channel for call / listen / cam (docs/flows/remote.md 2.17), fixed per session (me.via): "lan" = the phone's own /api/call
 // when this page reaches it straight (LAN, Tailscale) and its app has it (0.9.72): no relay needed, no round trip through the internet;
@@ -230,6 +254,7 @@ const CAM = (() => {   // one global: CAM.start(o), CAM.on() (call / listen refu
   function camEnd(me, why, tell) {
     if (camRtc !== me) return;
     camRtc = null;
+    if (me.rec) me.rec.stop();   // the part recorded so far is saved
     if (me.c) me.c.close();
     clearInterval(me.tick); clearTimeout(me.hid);
     if (tell && me.st !== "prep") vcApi(me, "/call", "POST", { op: "end", id: me.id, why: ["lost", "failed", "hidden"].includes(why) ? "failed" : why === "timeout" ? "timeout" : "hangup" }).catch(() => {});
@@ -252,13 +277,21 @@ const CAM = (() => {   // one global: CAM.start(o), CAM.on() (call / listen refu
     el.id = "camUi"; el.className = "vc"; el.setAttribute("role", "dialog"); el.setAttribute("aria-modal", "true"); el.setAttribute("aria-label", t("cam.h"));
     el.innerHTML = `<div class="vcwait" id="camWait" aria-hidden="true">${ic("camera")}</div><video id="camVideo" autoplay playsinline></video>
       <div class="vctop"><b>${esc(me.k.name || "")}</b><span id="camSt" role="status"></span></div>
-      <div class="vcbar"><button type="button" id="camFlip" class="vcb" aria-label="${esc(t("cam.flip"))}">${ic("refresh-cw")}</button><button type="button" id="camEnd" class="vcb end" aria-label="${esc(t("cam.stop"))}">${ic("square")}</button>${me.snd ? `<button type="button" id="camSnd" class="vcb" aria-pressed="false"></button>` : ""}</div>`;
+      <div class="vcbar">${vrec.can() ? `<button type="button" id="camRec" class="vcb" aria-pressed="false" aria-label="${esc(t("rec.start"))}">${ic("circle")}</button>` : ""}<button type="button" id="camFlip" class="vcb" aria-label="${esc(t("cam.flip"))}">${ic("refresh-cw")}</button><button type="button" id="camEnd" class="vcb end" aria-label="${esc(t("cam.stop"))}">${ic("square")}</button>${me.snd ? `<button type="button" id="camSnd" class="vcb" aria-pressed="false"></button>` : ""}</div>`;
     document.body.appendChild(el);
     const v = el.querySelector("#camVideo");
     v.addEventListener("playing", () => v.classList.add("live"));
     el.querySelector("#camEnd").onclick = () => camEnd(me, "hangup", true);
     el.querySelector("#camFlip").onclick = () => { if (camRtc !== me || me.st !== "on" || me.flip || !me.c) return; me.flip = true; me.c.send({ t: "flip" }); camPaint(); setTimeout(() => { if (me.flip) { me.flip = false; camPaint(); } }, 8000); };
     const sb = el.querySelector("#camSnd"); if (sb) sb.onclick = () => { me.mute = !me.mute; v.muted = me.mute; camPaint(); };
+    const rb = el.querySelector("#camRec");
+    if (rb) rb.onclick = () => {
+      if (camRtc !== me) return;
+      if (me.rec) return me.rec.stop();
+      if (me.st !== "on" || !v.srcObject) return;
+      me.rec = vrec.start(v.srcObject, vrec.name(me.k, "camera"), () => { me.rec = null; camPaint(); });
+      camPaint();
+    };
     me.tick = setInterval(camPaint, 1000);
     camPaint();
   }
@@ -268,9 +301,12 @@ const CAM = (() => {   // one global: CAM.start(o), CAM.on() (call / listen refu
     if (me.t0 && left <= 0) return camEnd(me, "timeout", true);
     const mm = (ms) => { const s = Math.max(0, Math.round(ms / 1000)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
     const st = me.st === "prep" ? t("cam.prep") : me.st === "ring" ? t("cam.ring") : me.st === "conn" ? t("call.conn") : me.st === "weak" ? t("call.weak")
-      : t("cam.live", t(me.back ? "cam.back" : "cam.front"), mm(Date.now() - me.t0), mm(left)) + (me.flip ? " · " + t("cam.flipping") : "");
+      : t("cam.live", t(me.back ? "cam.back" : "cam.front"), mm(Date.now() - me.t0), mm(left)) + (me.flip ? " · " + t("cam.flipping") : "")
+        + (me.rec ? " · " + t("rec.on", vrec.mm(Date.now() - me.rec.t0)) : "");
     const s = el.querySelector("#camSt"); if (s.textContent !== st) s.textContent = st;
     const f = el.querySelector("#camFlip"); if (f) f.disabled = me.st !== "on" || me.flip;
+    const rb = el.querySelector("#camRec");
+    if (rb) { rb.disabled = me.st !== "on" && !me.rec; rb.setAttribute("aria-pressed", String(!!me.rec)); rb.setAttribute("aria-label", t(me.rec ? "rec.stop" : "rec.start")); rb.classList.toggle("rec", !!me.rec); }
     const sb = el.querySelector("#camSnd");
     if (sb) { const h = ic(me.mute ? "mic-off" : "mic"); if (sb.innerHTML !== h) sb.innerHTML = h; sb.setAttribute("aria-pressed", String(me.mute)); sb.setAttribute("aria-label", t(me.mute ? "cam.sndOn" : "cam.sndOff")); }
     el.querySelector("#camWait").style.display = me.st === "on" ? "none" : "flex";

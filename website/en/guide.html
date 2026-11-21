@@ -238,7 +238,7 @@ powershell -ExecutionPolicy Bypass -File scripts\setup.ps1</code></pre></li>
         <tr><th scope="row">Setup</th><td>~2 min: make a bot, paste its token</td><td>~5 min, once: Tailscale app on the parent's phone, paste one key</td><td>None (shared relay is on). Your own: ~3 min on a computer</td></tr>
         <tr><th scope="row">Used with</th><td>The Telegram app, buttons</td><td>The parent page (Tailscale app on)</td><td>The parent page, any browser</td></tr>
         <tr><th scope="row">Speed</th><td><span class="yes">~1 second</span></td><td><span class="yes">Instant</span></td><td>Usually a few seconds (if the live link drops: ~20 s, screen off ~60 s)</td></tr>
-        <tr><th scope="row">Screen / listen</th><td>Screenshot, camera photo, 5–30 s video, 5–60 s recording</td><td><span class="yes">Live screen and camera, live listen</span></td><td>Live screen and camera, live listen</td></tr>
+        <tr><th scope="row">Screen / listen</th><td>Screenshot, camera photo, 5–30 s video, 5–60 s recording</td><td><span class="yes">Live screen and camera, live listen, record any of them in the page</span></td><td>Live screen and camera, live listen, record any of them in the page</td></tr>
         <tr><th scope="row">SOS, more-time requests</th><td><span class="yes">Arrive at once in Telegram</span></td><td>In the page / parent app</td><td>In the page / parent app</td></tr>
         <tr><th scope="row">Data goes through</th><td>Telegram's servers</td><td>Nobody (end-to-end encrypted)</td><td>Shared: the author's Cloudflare. Your own: only your account</td></tr>
         <tr><th scope="row">Needs</th><td>Internet on the child's phone. One bot per child</td><td>Device Owner (not in basic mode)</td><td>Nothing</td></tr>
@@ -368,9 +368,9 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
         <div><dt>Location</dt><dd>Locate now, location forced on (the child can't turn it off), 7-day history on an OpenStreetMap map.</dd></div>
         <div><dt>Zones</dt><dd>Home, School… with a radius: you're told when the child arrives or leaves.</dd></div>
         <div><dt>SOS</dt><dd>A red button on the child's phone: the parent page shows the time and a fresh location; the parent app notifies.</dd></div>
-        <div><dt>See the screen</dt><dd>The child's screen live (Android 11+, ~3 fps). The child is told the parent is viewing.</dd></div>
+        <div><dt>See the screen</dt><dd>The child's screen live (Android 11+, ~3 fps). <b>Save picture</b> keeps one frame, <b>Record</b> makes a video (saved on the parent's device; stops when tapped again or when viewing stops). The child is told the parent is viewing.</dd></div>
         <div><dt>Remote control</dt><dd>Tap, swipe, long press, Back / Home / Recents, type text.</dd></div>
-        <div><dt>Listen around</dt><dd>At most 10 min at a time, home Wi-Fi or Tailscale only. The child always knows: a beep, a notification, Android's mic dot.</dd></div>
+        <div><dt>Listen around</dt><dd>At most 10 min at a time, over home Wi-Fi, Tailscale or the relay. The child always knows: a beep, a notification, Android's mic dot.</dd></div>
         <div><dt>Lost mode</dt><dd><b>Where</b> tab: turning it on locks the phone at once and again on every unlock, shows your message + number on the lock screen, locates every 5 min and rings 5 min in every 15. Turn it off and everything goes back. Also alerts on a SIM change.</dd></div>
         <div><dt>Alert levels</dt><dd>Only SOS, lost, tamper and requests make noise; the rest arrive quietly. Telegram: <code>/quiet</code> picks all / important / SOS only per person. The parent app says “offline since HH:mm” and skips the child's bedtime.</dd></div>
         <div><dt>Alerts</dt><dd>Arrived / left a zone, battery at 15 %, a new app installed, the clock changed.</dd></div>
@@ -380,7 +380,7 @@ powershell -ExecutionPolicy Bypass -File scripts\relay.ps1</code></pre></li>
       <h3>Looking back</h3>
       <dl>
         <div><dt>Notifications, SMS, word alerts</dt><dd>Turn each one on in <b>What you can see</b>: read your kid's notifications and text messages, and get an alert when a word of yours shows up. Each is off until you turn it on. Your kid is always told.</dd></div>
-        <div><dt>Camera on request</dt><dd>Turn it on in <b>What you can see</b>. Tap <b>Take photo</b>, or <b>Watch live</b> to see the camera for up to 10 minutes (one way, sound optional). Not on yet? The page asks: tap <b>Turn on and continue</b> (photo) or <b>Turn on camera</b> (live). Your kid sees a notice the whole time. Photos you opened stay viewable when the phone is offline.</dd></div>
+        <div><dt>Camera on request</dt><dd>Turn it on in <b>What you can see</b>. Tap <b>Take photo</b>, or <b>Watch live</b> to see the camera for up to 10 minutes (one way, sound optional; the round button records it to a video on your device). Not on yet? The page asks: tap <b>Turn on and continue</b> (photo) or <b>Turn on camera</b> (live). Your kid sees a notice the whole time. Photos you opened stay viewable when the phone is offline.</dd></div>
         <div><dt>History</dt><dd>Screen time for 7 days, top apps per day, a weekly report per kid.</dd></div>
         <div><dt>All kids</dt><dd><b>Overview</b>: a card per kid, every kid's location on one map, 7 days side by side.</dd></div>
         <div><dt>Child's rules</dt><dd>The child sees their own rules and a log of what the parents changed.</dd></div>

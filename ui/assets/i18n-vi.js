@@ -502,6 +502,7 @@ L.vi = {
   "cam.askSnd": "Bật camera và micro máy con để xem trực tiếp?\n\nMáy con hiện thông báo “Bố mẹ đang xem camera của bạn” suốt lúc xem. Tự dừng sau tối đa 10 phút.",
   "cam.on": "Bật camera", "cam.prep": "Đang chuẩn bị…", "cam.ring": "Đang chờ máy con mở camera…",
   "cam.live": "Trực tiếp · camera {0} · {1} · còn {2}", "cam.front": "trước", "cam.back": "sau",
+  "rec.start": "Ghi lại", "rec.stop": "Dừng ghi", "rec.on": "Đang ghi {0}", "rec.saved": "Đã lưu bản ghi vào Tải xuống", "rec.unsup": "Trình duyệt này không ghi được. Thử Chrome.",
   "cam.flip": "Đổi camera", "cam.flipping": "đang đổi camera", "cam.flipFail": "Máy con không mở được camera kia",
   "cam.sndOff": "Tắt tiếng", "cam.sndOn": "Bật tiếng", "cam.stop": "Dừng xem", "cam.close": "Đóng", "cam.done": "Đã xem {0} phút",
   "cam.e.timeout": "Đã dừng (tối đa 10 phút mỗi lần)", "cam.e.failed": "Không kết nối được máy con. Thử lại", "cam.e.lost": "Mất kết nối",

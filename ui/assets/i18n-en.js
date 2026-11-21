@@ -501,6 +501,7 @@ L.en = {
   "cam.askSnd": "Turn on your kid's camera and mic to watch live?\n\nTheir phone shows “Your parent is watching your camera” the whole time. It stops by itself within 10 minutes.",
   "cam.on": "Turn on camera", "cam.prep": "Getting ready…", "cam.ring": "Waiting for the kid's phone to open the camera…",
   "cam.live": "Live · {0} camera · {1} · {2} left", "cam.front": "front", "cam.back": "back",
+  "rec.start": "Record", "rec.stop": "Stop recording", "rec.on": "Recording {0}", "rec.saved": "Recording saved to Downloads", "rec.unsup": "This browser can't record. Try Chrome.",
   "cam.flip": "Switch camera", "cam.flipping": "switching camera", "cam.flipFail": "The kid's phone could not open the other camera",
   "cam.sndOff": "Mute", "cam.sndOn": "Unmute", "cam.stop": "Stop watching", "cam.close": "Close", "cam.done": "Watched {0} min",
   "cam.e.timeout": "Stopped (10 minutes at most each time)", "cam.e.failed": "Could not reach the kid's phone. Try again", "cam.e.lost": "Connection lost",
