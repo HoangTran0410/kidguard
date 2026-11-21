@@ -13,6 +13,14 @@
     <string name="hm_wk_edit_hint">Bấm tiết để nhập môn, giữ để xoá môn</string>
     <string name="hm_wk_subject_hint">Tên môn (vd: Toán)</string>
     <string name="hm_wk_copy">Chép từ hôm trước</string>
+    <string name="hm_wk_more">Thêm</string>
+    <string name="hm_wk_share">Gửi thời khoá biểu</string>
+    <string name="hm_wk_import">Nhập từ chữ</string>
+    <string name="hm_wk_import_hint">Dán chữ đã gửi (T2 sáng: Toán, Văn…)</string>
+    <string name="hm_wk_import_msg">Thay cả thời khoá biểu đang có. Mỗi dòng một buổi, ví dụ \"T2 sáng: Toán, Văn, -, Anh\" (dấu - là tiết trống).</string>
+    <string name="hm_wk_import_ok">Nhập</string>
+    <string name="hm_wk_import_bad">Không thấy dòng nào như \"T2 sáng: Toán, Văn\".</string>
+    <string name="hm_wk_import_done">Đã nhập %1$d buổi học</string>
     <string name="hm_wk_done">Xong</string>
     <string name="hm_wk_d1">T2</string>
     <string name="hm_wk_d2">T3</string>

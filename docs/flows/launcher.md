@@ -134,6 +134,7 @@ Gotchas: `Recent.load` is a binder call; must run off main thread (note in Recen
 - `sched`: from `LauncherLogic.today` (parent schedules, group hours, bedtime); empty: text + link to the kid's timetable (`openTimetable`)
 - `chores`: parent chores + kid's own homework todos
 - `tomorrow`: only in the evening (`TimetableLogic.eveningFirst`); empty: text + "Tạo thời khoá biểu" -> `openTimetable(tomorrow)`
+- Timetable sheet "⋯" (`openTimetable` head): "Gửi thời khoá biểu" = ACTION_SEND plain text (`TimetableText.write`, vi/en labels by locale); "Nhập từ chữ" = paste box (pre-filled from the clipboard when it parses) -> `TimetableText.read` = full replace of subjects, bells only when the text has them. Test `TimetableTextTest`.
 - `notes`: kid notes (share-with-parent flag; hidden switch in Home)
 - `files`: parent->kid files + kid's outbox; hidden when empty AND never paired (no one to share with)
 Rule (0c95d99): cards show an empty state with a way to fill them, never vanish; data the parent owns gets explanatory text, not a create button.

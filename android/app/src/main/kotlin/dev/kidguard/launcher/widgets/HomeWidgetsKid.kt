@@ -1,5 +1,6 @@
 package dev.kidguard
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.text.TextUtils
@@ -198,6 +199,36 @@ internal fun HomeActivity.openTimetable(startDow: Int, tab: Int = 0) {
     fun tt() = model?.timetable ?: org.json.JSONObject()
     fun saveTt(n: org.json.JSONObject) { model?.let { mm -> update(mm.copy(timetable = n)) } }
     lateinit var rebuild: () -> Unit
+
+    // "⋯": send the timetable as text / paste one back (owner 2026-11-21: a reinstall meant retyping every period)
+    fun shareTt() {
+        val txt = TimetableText.write(tt(), resources.configuration.locales[0].language == "vi")
+        runCatching { startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, txt), getString(R.string.hm_wk_share))) }
+    }
+    fun importTt() {
+        val md = Modal(this, u)
+        val f = md.field(getString(R.string.hm_wk_import_hint), 4000).apply {
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_NONE; minLines = 4; maxLines = 8; textSize = 14f
+            gravity = Gravity.TOP or Gravity.START
+        }
+        // the clipboard already holds a timetable (copied from Zalo...): put it in, one tap to import
+        runCatching { getSystemService(android.content.ClipboardManager::class.java).primaryClip?.getItemAt(0)?.coerceToText(this)?.toString() }
+            .getOrNull()?.takeIf { TimetableText.read(it, tt()) != null }?.let { f.setText(it) }
+        md.show(R.drawable.li_calendar, Modal.Tone.INFO, getString(R.string.hm_wk_import), getString(R.string.hm_wk_import_msg), content = f,
+            ok = getString(R.string.hm_wk_import_ok), cancel = getString(R.string.cancel)) {
+            val r = TimetableText.read(f.text.toString(), tt())
+            if (r == null) { md.setError(getString(R.string.hm_wk_import_bad)); false }
+            else { saveTt(r.tt); rebuild(); Toasts.show(this, getString(R.string.hm_wk_import_done, r.sessions)); true }
+        }
+    }
+    head.addView(kit.chip("", pal.text, pal.tint, R.drawable.li_ellipsis).apply {
+        contentDescription = getString(R.string.hm_wk_more)
+        kit.tap(this, 999f) { menu(listOf(
+            HomeActivity.Row(R.drawable.li_send, getString(R.string.hm_wk_share), true) { shareTt() },
+            HomeActivity.Row(R.drawable.li_file_down, getString(R.string.hm_wk_import), true) { importTt() },
+        ), this) }
+    }, 1, LinearLayout.LayoutParams(-2, -2).apply { marginEnd = dp(8) })
 
     fun editSubject(d: Int, pm: Boolean, i: Int) {
         val old = TimetableLogic.session(tt(), d, pm).getOrElse(i) { "" }

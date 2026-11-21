@@ -13,6 +13,14 @@
     <string name="hm_wk_edit_hint">Tap a period to type its subject, hold to clear it</string>
     <string name="hm_wk_subject_hint">Subject (e.g. Math)</string>
     <string name="hm_wk_copy">Copy from previous day</string>
+    <string name="hm_wk_more">More</string>
+    <string name="hm_wk_share">Send timetable</string>
+    <string name="hm_wk_import">Import from text</string>
+    <string name="hm_wk_import_hint">Paste the sent text (Mon am: Maths, …)</string>
+    <string name="hm_wk_import_msg">Replaces the whole timetable. One line per session, e.g. \"Mon am: Maths, English, -, Art\" (- is a free period).</string>
+    <string name="hm_wk_import_ok">Import</string>
+    <string name="hm_wk_import_bad">No line like \"Mon am: Maths, English\" found.</string>
+    <string name="hm_wk_import_done">Imported %1$d sessions</string>
     <string name="hm_wk_done">Done</string>
     <string name="hm_wk_d1">Mon</string>
     <string name="hm_wk_d2">Tue</string>
