@@ -121,14 +121,14 @@ internal fun HomeActivity.clockWidget(r: Rules, dv: View0, w: Int, h: Int, hideN
     val d = FitText(this, if (h >= 2) 17f else 15f, 0.75f).apply {
         full = date; text = date; short = SimpleDateFormat("EEE, d/M", resources.configuration.locales[0]).format(Date(dv.now)).replaceFirstChar { it.titlecase() }; setTextColor(Color.WHITE); inkLeft = !mid; typeface = HomeActivity.tf(true); setPadding(if (mid) dp(6) else 0, dp(2), dp(6), dp(2)) }
     box.addView(d, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
-    inkViews += t; inkViews += d
+    onWall(t); onWall(d)
     clocks += t to d
     // one place for "what's next": the "Lịch tiếp theo" widget when it is on the home, else here
     if (!hideNext) LauncherLogic.nextEvent(r, dv.minute, dv.dow)?.let { (min, name) ->
         val n = text(if (name.isEmpty()) getString(R.string.hm_next_bed, HomeLogic.clock(min)) else getString(R.string.hm_next, name, HomeLogic.clock(min)), WType.BODY, Color.WHITE)
             .apply { setPadding(if (mid) dp(6) else 0, dp(2), dp(6), dp(2)); maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END }
         box.addView(n, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(2) })
-        inkViews += n
+        onWall(n)
     }
     box.contentDescription = "${t.text}. ${d.text}"
     kit.tap(box, 22f) { openRelated(clockIntent(), box) }

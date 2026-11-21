@@ -123,7 +123,7 @@ internal fun HomeActivity.addLabel(box: LinearLayout, lbl: TextView, top: Int) {
         ReadAids.backLabel(lbl)
         box.addView(lbl, LinearLayout.LayoutParams(-2, -2).apply { topMargin = dp(top); gravity = Gravity.CENTER_HORIZONTAL })
     } else {
-        inkViews += lbl
+        onWall(lbl)
         box.addView(lbl, LinearLayout.LayoutParams(-1, -2).apply { topMargin = dp(top) })
     }
 }

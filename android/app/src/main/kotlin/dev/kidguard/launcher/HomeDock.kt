@@ -103,20 +103,29 @@ internal fun HomeActivity.sosMenu(anchor: View) {
  * whole home area, like Pixel / iOS: every label looks the same, no per-label pills, nothing re-sampled per position
  * or page. Contrast on busy spots comes from the text shadow (stronger when the wallpaper is mid-tone).
  */
+internal fun HomeActivity.inkOne(v: View, ink: Ink) {
+    val busy = ink.ratio < Contrast.TEXT
+    val shadow = if (busy) Contrast.alpha(ink.shadow, 0.85) else ink.shadow
+    when (v) {
+        is TextView -> { v.setTextColor(ink.text); v.setShadowLayer(dpf(if (busy) 4f else 3f), 0f, dpf(1f), shadow); v.background = null }
+        is ImageView -> { v.drawable?.setTint(ink.text); v.background = null }
+    }
+}
+
+/** A new view on the wallpaper: takes the known ink at once. Waiting for the posted [inkPass] drew one white frame
+ *  first, so on a light wallpaper every rebuild (drop after a drag, 2026-11-21 owner) flashed the dark labels white. */
+internal fun HomeActivity.onWall(v: View) {
+    inkViews += v
+    inkCache["grid"]?.let { inkOne(v, it) }
+}
+
 internal fun HomeActivity.inkPass() {
     val bmp = wall ?: return
     if (isFinishing) return
     val w = root.width.takeIf { it > 0 } ?: return
     val ink = inkCache.getOrPut("grid") { HomeStyle.ink(Wallpaper.sample(bmp, Rect(0, insT, w, bmp.height - insB), 48), Contrast.LARGE) }
     inkCache["dots"] = ink
-    val busy = ink.ratio < Contrast.TEXT
-    val shadow = if (busy) Contrast.alpha(ink.shadow, 0.85) else ink.shadow
-    for (v in inkViews.toList()) {
-        when (v) {
-            is TextView -> { v.setTextColor(ink.text); v.setShadowLayer(dpf(if (busy) 4f else 3f), 0f, dpf(1f), shadow); v.background = null }
-            is ImageView -> { v.drawable?.setTint(ink.text); v.background = null }
-        }
-    }
+    for (v in inkViews.toList()) inkOne(v, ink)
     buildDots()
     styleCells()
     bars()
