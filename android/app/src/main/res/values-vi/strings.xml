@@ -330,6 +330,7 @@
     <string name="step_acc">Bật trợ năng</string>
     <string name="step_battery">Cho phép chạy nền (không giới hạn pin)</string>
     <string name="ss_failed">Chưa cài được: %1$s</string>
+    <string name="ss_admin_manual">Máy không cho bật quản trị thiết bị qua gỡ lỗi. Các bước khác đã chạy. Bật bằng tay: mở KidGuard, bấm \"Bật quyền quản trị thiết bị\".</string>
     <string name="ss_sec_debug">Máy chặn lệnh cài đặt. Xiaomi, Redmi, POCO: trong Tuỳ chọn nhà phát triển bật \"Gỡ lỗi USB (Cài đặt bảo mật)\" (công tắc riêng, dưới Gỡ lỗi USB, cần SIM và tài khoản Mi), rồi chạy lại Tự cài. Máy công ty có quản lý (MDM) có thể chặn hẳn.</string>
     <string name="ss_perm_mon">Oppo/Realme/OnePlus (ColorOS): Tuỳ chọn nhà phát triển > bật \"Tắt giám sát quyền\" (Disable permission monitoring), rồi làm lại.</string>
     <string name="ss_no_pair_port">Không thấy cổng ghép nối. Hãy mở lại hộp thoại \"Ghép thiết bị bằng mã ghép nối\" rồi thử lại.</string>
@@ -360,7 +361,7 @@
     <string name="ss_code_6">Mã phải đủ 6 số</string>
     <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
     <string name="ssa_old">Máy dùng Android %1$s (dưới 11), không tự cài được. Cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
-    <string name="ssa_dev_first">Làm bước 1 trước: bấm 7 lần Số hiệu bản tạo (Xiaomi/Poco: Phiên bản OS)</string>
+    <string name="ssa_dev_first">Làm bước 1 trước: bật Tùy chọn nhà phát triển</string>
     <string name="ssa_s1_ok">Đã bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s2_ok">Gỡ lỗi không dây đang bật</string>
     <string name="ssa_need_wifi">Máy chưa dùng Wi-Fi. Vào Wi-Fi, rồi bật Gỡ lỗi không dây (4G không được).</string>

@@ -410,12 +410,18 @@ object SelfSetup {
             var out = ""
             for (t in 0 until 10) { out = sh("dpm set-active-admin --user current $PKG/.Admin"); if ("being removed" !in out) break; Thread.sleep(1000) }
             Log.i(AdbPortFinder.TAG, "set-active-admin -> $out")
-            if (!out.contains("Success") && !Basic.adminActive(app)) {
+            if (!out.contains("Success") && !Basic.adminActive(app) && SelfSetupLogic.secBlocked(out)) {
+                // Xiaomi HyperOS (2026-11-19, again 2026-11-21 with "USB debugging (Security settings)" ON): the shell may not
+                // add an admin. Don't stop: the other steps often still work, and the admin is one tap in the checklist.
+                // The diag line (security switch property, owners) is what the next report needs to find the real cause.
+                val diag = runCatching { "adbinput=" + sh("getprop persist.security.adbinput").trim() + " owners=" + SelfSetupLogic.firstLine(sh("dpm list-owners")) }.getOrDefault("")
+                Log.i(AdbPortFinder.TAG, "admin blocked: $diag")
+                state[2] = STEP_ERR; soft += app.getString(R.string.ss_admin_manual) + if (diag.isNotEmpty()) " ($diag)" else ""
+            } else if (!out.contains("Success") && !Basic.adminActive(app)) {
                 // why basic mode was tried (another Device Owner, accounts...) + why it failed: both lines, not just the last
                 state[2] = STEP_ERR; message = listOfNotNull(basicWhy.takeIf { it.isNotBlank() && !wantBasic }, failText(app, out)).joinToString("\n")
                 notifyFinal(app, app.getString(R.string.ss_failed, message)); runCatching { m.disconnect() }; return
-            }
-            state[2] = STEP_OK
+            } else state[2] = STEP_OK
         }
         step(3, "appops set $PKG GET_USAGE_STATS allow", keepGoing = true)
         step(4, "pm grant $PKG android.permission.WRITE_SECURE_SETTINGS", keepGoing = true)
