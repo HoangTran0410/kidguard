@@ -359,6 +359,7 @@ L.en = {
   "where.noStops": "No stops of 5 minutes or more", "where.noPts": "No points yet: turn on {0} Record location in Rules", "where.lastH": "Last known location", "where.dir": "Directions to your child (Google Maps)", "where.gmaps": "Open Google Maps",
   "where.noLoc": "No location yet. Turn on Location on the kid's phone, then tap Locate.", "where.locNew": "Get new location", "where.auto": "The kid's phone records its location on the interval set in the Rules tab.",
   "where.locating": "Getting location…",
+  "tl.prev": "Previous point", "tl.next": "Next point", "tl.spd": "Replay speed",
   "tl.play": "Play the day", "tl.pause": "Pause", "tl.aria": "Time of day", "tl.none": "no location at this time",
   "tl.atZ": "at {0}", "tl.stay": "staying in one place", "tl.move": "on the move", "tl.gap": "estimated, no points {0}–{1}",
   "tl.last": "last fix at {0}", "tl.now": "now", "tl.one": "Needs at least 2 points to play back", "tl.go": "Show {0} on the timeline",

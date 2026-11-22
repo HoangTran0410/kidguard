@@ -137,6 +137,7 @@ button.sm{min-height:38px;padding:0 12px;font-size:14px;border-radius:12px;white
 .tln input[type=range]:focus-visible::-moz-range-thumb{box-shadow:none}@supports (color:color-mix(in srgb,red,blue)){.tln input[type=range]:focus-visible::-moz-range-thumb{box-shadow:0 0 0 4px color-mix(in srgb,var(--accent) 35%,transparent)}}
 .tln input[type=range]:disabled{cursor:default;opacity:.45}
 .tln .scA{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);font-variant-numeric:tabular-nums}
+.tln .scN{display:flex;justify-content:center;gap:12px;margin-top:6px}.tln .scN button{min-width:56px;height:44px;min-height:44px;padding:0 12px;border-radius:999px;font-variant-numeric:tabular-nums;font-weight:600}
 #s-box.off{opacity:.45;pointer-events:none}#s-off:not([hidden]){display:flex;gap:10px;align-items:center;flex-wrap:wrap}#s-off .sp{min-width:12em}#s-off button{flex:none}
 .stb{flex:1;min-width:0;justify-content:flex-start;text-align:left;border-color:transparent;background:transparent;padding:6px 8px;font-weight:400}.stb.on{background:var(--tint);border-color:var(--accent)}
 .map .pin{position:absolute;transform:translate(-50%,-100%);background:var(--card);color:var(--text);border:2px solid;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;white-space:nowrap;pointer-events:none;box-shadow:none}

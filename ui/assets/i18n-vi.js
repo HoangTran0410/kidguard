@@ -360,6 +360,7 @@ L.vi = {
   "where.noStops": "Không có điểm dừng nào ≥ 5 phút", "where.noPts": "Chưa có điểm nào — bật {0} Ghi vị trí trong Luật", "where.lastH": "Vị trí gần nhất", "where.dir": "Chỉ đường tới con (Google Maps)", "where.gmaps": "Mở Google Maps",
   "where.noLoc": "Chưa có vị trí. Bật Vị trí trên máy con rồi bấm Lấy vị trí.", "where.locNew": "Lấy vị trí mới", "where.auto": "Máy con tự ghi vị trí theo chu kỳ đặt trong tab Luật.",
   "where.locating": "Đang lấy vị trí…",
+  "tl.prev": "Điểm trước", "tl.next": "Điểm sau", "tl.spd": "Tốc độ phát lại",
   "tl.play": "Phát lại cả ngày", "tl.pause": "Tạm dừng", "tl.aria": "Thời điểm trong ngày", "tl.none": "chưa có vị trí lúc này",
   "tl.atZ": "đang ở {0}", "tl.stay": "đứng yên một chỗ", "tl.move": "đang di chuyển", "tl.gap": "ước đoán, không có điểm {0}–{1}",
   "tl.last": "vị trí cuối lúc {0}", "tl.now": "bây giờ", "tl.one": "Cần ít nhất 2 điểm để phát lại", "tl.go": "Xem lúc {0} trên dòng thời gian",

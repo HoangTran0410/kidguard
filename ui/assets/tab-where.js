@@ -102,7 +102,8 @@ function drawMap(pts) {
 }
 // --- timeline scrubber (Google Maps Timeline / Life360 history): one track for the day, thumb = a moment, the map shows where ---
 // tl.pts/sp/t0/t1 are set by whereTab; tl.t is the thumb time, tl.live = follow "now" (today) / the end of the day.
-const tl = { day: "", t: 0, t0: 0, t1: 0, pts: [], sp: [], live: true, play: false, raf: 0, last: 0, drag: false };
+// spd = replay speed, index into TL_SPD (owner 2026-11-23: "play đang nhanh quá"); remembered per browser
+const tl = { day: "", t: 0, t0: 0, t1: 0, pts: [], sp: [], live: true, play: false, raf: 0, last: 0, drag: false, spd: (() => { try { const v = localStorage.getItem("kg.tlSpd"); return v !== null && +v >= 0 && +v <= 3 ? +v : 1; } catch (e) { return 1; } })() };
 function scrZone(lat, lng) { const z = ((edit || (st && st.rules) || {}).zones || []).filter(zoneOk).find(z => hav(+z.lat, +z.lng, lat, lng) <= (+z.r || 150)); return z ? z.name : ""; }
 function scrAt(T) {   // where the kid was at T: null before the first point; linear between neighbours; a stop snaps to its centre
   const p = tl.pts; if (!p.length || T < p[0][0]) return null;
@@ -156,7 +157,10 @@ function scrTick(now) {
   if (!tl.play) return;
   if (!$("#scR")) { tl.play = false; return; }   // left the tab
   const dt = Math.min(100, now - tl.last); tl.last = now;
-  tl.t = Math.min(tl.t1, tl.t + (tl.t1 - tl.t0) * dt / 12000);   // the whole day in ~12 s
+  // speed in "minutes of the day per second": 0.5x = 5, 1x = 15, 2x = 30, 4x = 60 (was the whole day in 12 s = ~120);
+  // a stop (standing still) plays 8x faster: nothing moves there
+  const inStop = tl.sp.some(x => tl.t >= x.start && tl.t < x.end);
+  tl.t = Math.min(tl.t1, tl.t + [5, 15, 30, 60][tl.spd] * 60 * dt * (inStop ? 8 : 1));
   tl.live = false; scrPaint(true);
   if (tl.t >= tl.t1) { tl.live = true; return scrPlay(false); }
   tl.raf = requestAnimationFrame(scrTick);
@@ -167,7 +171,10 @@ function scrHtml(pts) {
     <div class="scL" id="scL" aria-live="off"></div></div>
     <div class="scW"><div class="scK"><b class="pf" id="scPf"></b>${tl.sp.map(s => `<i style="left:${pc(s.start).toFixed(2)}%;width:${Math.max(0.8, pc(s.end) - pc(s.start)).toFixed(2)}%"></i>`).join("")}</div>
     <input type="range" id="scR" min="${tl.t0}" max="${tl.t1}" step="1000" value="${tl.t}" ${span > 0 ? "" : "disabled"} aria-label="${esc(t("tl.aria"))}"></div>
-    <div class="scA"><span>${hhmm(tl.t0)}</span><span>${tl.day === dkey(Date.now()) ? t("tl.now") : hhmm(tl.t1)}</span></div></div>`;
+    <div class="scA"><span>${hhmm(tl.t0)}</span><span>${tl.day === dkey(Date.now()) ? t("tl.now") : hhmm(tl.t1)}</span></div>
+    <div class="scN"><button type="button" id="scPrev" ${one ? "disabled" : ""} aria-label="${esc(t("tl.prev"))}" title="${esc(t("tl.prev"))}">${ic("chevron-left")}</button>
+    <button type="button" id="scSpd" aria-label="${esc(t("tl.spd"))}" title="${esc(t("tl.spd"))}">${["0.5×", "1×", "2×", "4×"][tl.spd]}</button>
+    <button type="button" id="scNext" ${one ? "disabled" : ""} aria-label="${esc(t("tl.next"))}" title="${esc(t("tl.next"))}">${ic("chevron-right")}</button></div></div>`;
 }
 function scrWire() {
   const R = $("#scR"); if (!R) return;
@@ -179,6 +186,17 @@ function scrWire() {
     e.preventDefault(); if (tl.play) scrPlay(false); scrSet(tl.t + m * 60000 * (e.shiftKey && Math.abs(m) === 5 ? 6 : 1));
   };
   const b = $("#scP"); if (b) b.onclick = () => scrPlay(!tl.play);
+  // prev / next: one step per moving point, a stop counts as one step (its start)
+  const step = dir => {
+    const ev = [...new Set([...tl.pts.filter(p => !tl.sp.some(x => p[0] > x.start && p[0] <= x.end)).map(p => p[0]), ...tl.sp.map(x => x.start)])].sort((a, c) => a - c);
+    const T = dir > 0 ? ev.find(v => v > tl.t + 1000) : ev.filter(v => v < tl.t - 1000).pop();
+    if (tl.play) scrPlay(false);
+    scrSet(T != null ? T : dir > 0 ? tl.t1 : tl.t0, true);
+  };
+  const pv = $("#scPrev"), nx = $("#scNext"), sp = $("#scSpd");
+  if (pv) pv.onclick = () => step(-1);
+  if (nx) nx.onclick = () => step(1);
+  if (sp) sp.onclick = () => { tl.spd = (tl.spd + 1) % 4; sp.textContent = ["0.5×", "1×", "2×", "4×"][tl.spd]; try { localStorage.setItem("kg.tlSpd", tl.spd); } catch (e) { /* private window */ } };
   document.querySelectorAll("[data-stt]").forEach(x => x.onclick = () => { scrPlay(false); scrSet(+x.dataset.stt); });
   scrPaint(false);
 }
