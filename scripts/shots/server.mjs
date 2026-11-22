@@ -59,8 +59,22 @@ function stateOf(name) {
   if (rulesOf[name]) f.rules = rulesOf[name];
   f.t = NOW - 18e3;
   if (name === "bin") f.track = trackOf().filter(p => p[0] >= midnight.getTime() - U.d);
+  if (name === "bin") f.batLog = batLogOf(f.battery, f.charging);
   return f;
 }
+// battery since yesterday 0:00 (BatLog.kt points [t, pct, charging]): charged overnight, drained by day, a top-up in the
+// evening, off 1:00-3:00 (a gap in the line), unplugged at 7:00 and draining to the fixture's level now
+function batLogOf(now, chg) {
+  const y = midnight.getTime() - U.d, out = [], at = (h, p, c) => out.push([Math.round(y + h * 36e5), p, c]);
+  for (let h = 0; h < 7; h += 0.5) at(h, 100, 1);
+  for (let p = 99; p >= 22; p--) at(7 + (99 - p) * 13.5 / 77, p, 0);
+  for (let p = 23; p <= 100; p++) at(20.5 + (p - 23) * 3.5 / 77, p, 1);
+  at(25, 100, 1); at(27, 100, 1); for (let h = 27.5; h < 31; h += 0.5) at(h, 100, 1);
+  const end = (NOW - y) / 36e5;
+  for (let p = 99; p >= now; p--) at(31 + (99 - p) * (end - 31.2) / Math.max(1, 99 - now), p, chg ? 1 : 0);
+  return out;
+}
+
 // today's walk: waypoints (minutes since midnight) + a few metres of jitter, deterministic
 function trackOf() {
   const pts = readFix("track").points;

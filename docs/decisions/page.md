@@ -58,6 +58,8 @@ Index and the rule for adding lines: `README.md`.
 - 2026-11-16 `shell.js` (1100 lines, 126 top-level names) split by concern, pure move, same load order: `shell.js` (nav, render), `search.js` (QS), `tab-log.js` (Log/Support/Report), `live.js` (banners, strip, check-in, SOS, listen, action buttons), `requests.js` (pickers, sheets, requests, quick messages), `app-set.js` (parent-app settings, tipScan). Docs point at these files, `check-search.mjs` reads QS from `search.js`.
 
 - 2026-11-20 One pairing QR for every way (owner: a QR that fails on another network + separate LAN / relay sections confused parents). Kid QR = `kidguard.asia/app/#pair=<code>&lan=<ip:port>` whenever the code is on the relay; parent app probes the LAN 5 s and, when both work, shows 2 cards (Wi-Fi recommended: fastest, still falls back to the relay outside; Internet: anywhere, a bit slower) -> PIN. Add-a-kid = Scan + 6-digit code; address / relay link folded under "Other ways". Choice kept (not auto-LAN) because the owner asked to choose; LAN pair also gets the relay link from the state, so Wi-Fi is the recommended card.
+- 2026-11-22 Battery history (owner: "pin tụt như nào, khi nào đang sạc"): phone stores [t, pct, charging] on change + 30-min heartbeat (no OS BatteryStats: system-only permission), state sends 2 days, relay gets new points only (`_bat`, like `_trk`: the whole array on every percent was ~600 KB/day). Chart = hand-drawn SVG in a sheet from the phone card's battery cell, code in one block in `live.js` (no new page globals).
+
 ## Rejected / don't retry
 - Plain fallback line before `color-mix(... var() ...)`: does nothing (value parses, fails at computed time -> transparent). Reversed 555b36f by b05190c: use @supports blocks
 

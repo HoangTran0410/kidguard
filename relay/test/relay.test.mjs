@@ -109,6 +109,7 @@ j=await S({state:{t:1,battery:50,gone:1,apps:[{pkg:"a",ms:5},{pkg:"b",ms:3}],tra
 j=await S({state:{_part:1,t:2,_drop:["gone"],_apps:{set:[{pkg:"b",ms:9},{pkg:"c",ms:1}],del:["a"]},_trk:{from:20,add:[[20,1,1,5],[30,2,2,5]]}}});
 let g=await G();ck("partial merged: key, drop, apps, track",j.merge===1&&g.t===2&&g.battery===50&&!("gone" in g)&&g.apps.map(x=>x.pkg).join()==="b,c"&&g.track.map(p=>p[0]).join()==="20,30");
 j=await S({state:{_part:1,track:[]}});g=await G();ck("partial whole track replace",g.track.length===0&&g.battery===50);
+j=await S({state:{_part:1,batLog:[[100,80,0]]}});j=await S({state:{_part:1,_bat:{from:100,add:[[100,80,0],[200,79,1]]}}});g=await G();ck("partial _bat appends battery points",g.batLog.map(p=>p[0]).join()==="100,200");
 j=await (await fetch(`${B}/c/5555aaaa5555aaaa/sync`,{method:"POST",headers:H(),body:JSON.stringify({state:{_part:1,t:1}})})).json();ck("partial with nothing stored -> full:true",j.full===true);
 }
 // icons: phone uploads base64 webp once, <img> reads with ?k=

@@ -38,7 +38,7 @@ function phoneCard(online) {
   const nBig = !n ? (online ? t("live.on") : t("live.off")) : esc(n.ssid || n.carrier || tc("dv.n.", n.type, n.type));
   return `<div class="lhead"><h2>${ic("smartphone")} ${t("pc.title")}</h2></div><div class="pcg">`
     + cell(online ? "ok" : "bad", nIcon, nBig, n ? (online ? "" : t("live.off") + " · ") + ago(lastSeen()) : ago(lastSeen()), n ? "pcNet" : "")
-    + cell(st.charging ? "ok" : bat <= 15 ? "bad" : bat <= 30 ? "warn" : "info", st.charging ? "zap" : "battery-full", bat + "%", st.charging ? t("pc.charging") : t("pc.battery"))
+    + cell(st.charging ? "ok" : bat <= 15 ? "bad" : bat <= 30 ? "warn" : "info", st.charging ? "zap" : "battery-full", bat + "%", st.charging ? t("pc.charging") : t("pc.battery"), "pcBat")
     + cell(st.screenOn ? "info" : "mute", "smartphone", st.screenOn ? t("pc.on") : t("pc.off"), cur0 ? esc(cur0) : t("pc.screen"))
     + `</div>`;
 }
@@ -59,6 +59,86 @@ function netSheet() {
     ${kv(t("net.seen"), ago(lastSeen()))}</div>`);
 }
 document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#pcNet")) netSheet(); });
+// Battery history (owner 2026-11-22): state.batLog = [[t, pct, charging 0/1]] since yesterday's midnight, one point per
+// change or 30 min (BatLog.kt). Line breaks after 90 min with no point (phone off / app stopped); charging = green band.
+{   // block: no new page globals (check-assets ceiling)
+  const BAT_GAP = 90 * 60000;
+  const batStats = function (L, now) {
+    // drain: % lost per hour over unplugged stretches of the last 24 h (no gaps); last charge: the newest charging run
+    let lost = 0, ms = 0, ch = null;
+    for (let i = 1; i < L.length; i++) {
+      const [t0, p0, c0] = L[i - 1], [t1, p1, c1] = L[i];
+      if (!c0 && !c1 && t1 - t0 <= BAT_GAP && t0 >= now - 864e5) { lost += Math.max(0, p0 - p1); ms += t1 - t0; }
+    }
+    for (let i = L.length - 1; i >= 0; i--) if (L[i][2]) {
+      let j = i; while (j > 0 && L[j - 1][2]) j--;   // across gaps too: off while on the charger is still one charge
+      const end = i + 1 < L.length ? L[i + 1] : L[i];   // first unplugged point = when it came off the charger
+      ch = { from: L[j][0], p0: j > 0 ? L[j - 1][1] : L[j][1], to: end[0], p1: Math.max(L[i][1], end[1]), on: i === L.length - 1 };
+      break;
+    }
+    return { rate: ms >= 36e5 ? lost / (ms / 36e5) : null, ch };
+  }
+  const batChart = function (L, now) {
+    const W = 320, H = 150, l = 30, r = 8, top = 8, b = 22, x0 = new Date(now - 864e5).setHours(0, 0, 0, 0);
+    const X = t => l + (t - x0) / (now - x0) * (W - l - r), Y = p => top + (100 - p) / 100 * (H - top - b);
+    let g = "";
+    for (const p of [0, 50, 100]) g += `<line x1="${l}" x2="${W - r}" y1="${Y(p)}" y2="${Y(p)}" stroke="var(--line)"/><text x="${l - 4}" y="${Y(p) + 4}" text-anchor="end" font-size="10" fill="var(--mute)">${p}%</text>`;
+    for (let d = new Date(x0); +d < now; d.setHours(d.getHours() + 6)) {
+      const x = X(+d), h = d.getHours();
+      if (h === 0) g += `<line x1="${x}" x2="${x}" y1="${top}" y2="${H - b}" stroke="var(--stroke2)" stroke-dasharray="3 3"/>`;
+      if (x < W - r - 12 && (h === 0 || x - X(x0) > 44)) g += `<text x="${x}" y="${H - 6}" text-anchor="${+d === x0 ? "start" : "middle"}" font-size="10" fill="var(--mute)">${h === 0 ? esc(t(+d < x0 + 864e5 ? "bat.yest" : "sel.r.today")) : h + "h"}</text>`;
+    }
+    let band = "", path = "", bs = null;   // bs = start of the charging run being drawn (one rect per run)
+    for (let i = 0; i < L.length; i++) {
+      const [t0, p0, c0] = L[i], nx = L[i + 1] || [now, p0, c0], cut = nx[0] - t0 > BAT_GAP;
+      const t1 = cut ? Math.min(now, t0 + 30 * 60000) : nx[0];   // a point counts for at most its heartbeat when nothing follows
+      if (c0 && bs == null) bs = t0;
+      if (bs != null && (cut || !nx[2] || i === L.length - 1)) { band += `<rect x="${X(bs).toFixed(1)}" y="${top}" width="${Math.max(1, X(t1) - X(bs)).toFixed(1)}" height="${H - top - b}" fill="var(--ok)" opacity=".16"/>`; bs = null; }
+      path += `${i === 0 || L[i][0] - L[i - 1][0] > BAT_GAP ? "M" : "L"}${X(t0).toFixed(1)},${Y(p0).toFixed(1)}`;
+      if (cut || i === L.length - 1) path += `L${X(t1).toFixed(1)},${Y(p0).toFixed(1)}`;
+    }
+    return `<svg id="batSvg" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(t("bat.chart"))}" style="display:block;touch-action:pan-y">${g}${band}
+      <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
+      <line id="batCur" y1="${top}" y2="${H - b}" stroke="var(--fg)" opacity="0" stroke-width="1"/><circle id="batDot" r="4" fill="var(--accent)" opacity="0"/></svg>`;
+  }
+  const batSheet = function () {
+    if (!st) return;
+    const L = Array.isArray(st.batLog) ? st.batLog.filter(q => Array.isArray(q) && q.length >= 3).sort((a, c) => a[0] - c[0]) : null;
+    const now = Math.max(Date.now(), L && L.length ? L[L.length - 1][0] : 0), bat = +st.battery;
+    const kv = (k, v) => `<div class="dvkv"><span>${k}</span><b>${v}</b></div>`;
+    let body;
+    if (!L) body = `<p class="mute">${ic("triangle-alert")} ${t("bat.old")}</p>`;
+    else if (L.length < 2) body = `<p class="mute">${t("bat.none")}</p>`;
+    else {
+      const s = batStats(L, now), c = s.ch, day0 = new Date(now).setHours(0, 0, 0, 0), at = v => (v < day0 ? t("bat.yest") + " " : "") + hhmm(v);
+      body = `${batChart(L, now)}<p class="mute" id="batTip" style="margin:4px 0 8px;min-height:1.4em;font-size:13px">${t("bat.tip")}</p>
+        ${s.rate != null ? kv(t("bat.rate"), t("bat.rateV", s.rate < 1 ? s.rate.toFixed(1) : Math.round(s.rate))) : ""}
+        ${c ? kv(t(c.on ? "bat.chNow" : "bat.chLast"), c.on ? t("bat.chSince", at(c.from), c.p0) : t("bat.chV", at(c.from), at(c.to), c.p0, c.p1)) : ""}
+        <p class="mute" style="font-size:12px">${ic("info")} ${t("bat.note")}</p>`;
+    }
+    sheet(`<div class="dp" role="dialog" aria-modal="true" aria-labelledby="askT">${sheetHead(st.charging ? "zap" : "battery-full", t("bat.h"))}
+      ${kv(t("bat.now"), bat + "% · " + t(st.charging ? "pc.charging" : "dv.notCharging"))}${body}</div>`, pop => {
+      const svg = pop.querySelector("#batSvg"); if (!svg || !L) return;
+      const tip = pop.querySelector("#batTip"), cur = pop.querySelector("#batCur"), dot = pop.querySelector("#batDot");
+      const vb = svg.viewBox.baseVal, x0 = new Date(now - 864e5).setHours(0, 0, 0, 0), l = 30, r = 8;
+      const show = e => {
+        const bx = svg.getBoundingClientRect(), x = (e.clientX - bx.left) / bx.width * vb.width;
+        const tm = x0 + (x - l) / (vb.width - l - r) * (now - x0);
+        let q = null; for (const p of L) { if (p[0] <= tm) q = p; else break; }
+        if (!q || tm - q[0] > BAT_GAP) { tip.textContent = t("bat.noData"); dot.setAttribute("opacity", 0); }
+        else {
+          const px = Math.min(vb.width - r, Math.max(l, x)), py = 8 + (100 - q[1]) / 100 * (vb.height - 30);
+          dot.setAttribute("cx", px); dot.setAttribute("cy", py); dot.setAttribute("opacity", 1);
+          tip.textContent = `${new Date(tm).toLocaleString(lang, { weekday: "short", hour: "numeric", minute: "2-digit" })} · ${q[1]}%${q[2] ? " · " + t("pc.charging") : ""}`;
+        }
+        cur.setAttribute("x1", x); cur.setAttribute("x2", x); cur.setAttribute("opacity", .3);
+      };
+      svg.addEventListener("pointermove", show); svg.addEventListener("pointerdown", show);
+    });
+  }
+  document.addEventListener("click", e => { if (e.target.closest && e.target.closest("#pcBat")) batSheet(); });
+}
+
 function updateLive() {
   paintSave(); if (tab === "screen") screenCtl();
   const el = $("#live"), hs = $("#hst"); if (!el) return;

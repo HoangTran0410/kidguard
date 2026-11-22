@@ -66,6 +66,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Con xin mở trang web (Chia sẻ → KidGuard, yêu cầu `web`) | ✅ | ✅ | ✅ | ✅ | ❌ | Gửi được ở mọi kiểu; đồng ý chỉ có tác dụng khi có luật trang web (DO) |
 | Khoá máy theo tài khoản Google sau khi khôi phục (`frpIds`) | ✅ (Android 11+) | ❌ | ❌ | ❌ | ✅ | Cần ID số của tài khoản Google (không phải email). Sai ID = máy có thể khoá vĩnh viễn sau khi reset. |
 | Vị trí, lịch sử, vùng an toàn | ✅ | ✅ | ✅ | ✅ | ✅ | Cần quyền vị trí (cả nền) |
+| Lịch sử pin (biểu đồ 2 ngày: tụt bao nhiêu, lúc nào sạc; bấm ô Pin ở "Điện thoại của con") | ✅ | ✅ | ✅ | ✅ | ✅ | Không cần quyền. Máy tắt / KidGuard bị dừng = đường bị ngắt. Cần máy con từ 0.9.79 |
 | Nhật ký (sự kiện + dòng nhật ký, 90 ngày, xem theo ngày) | ✅ | ✅ | ✅ | ✅ | ✅ | Máy con lưu SQLite 90 ngày; LAN `GET /api/logday`, Relay hỏi theo ngày (trễ ≤ ~1 phút). Máy/worker cũ: chỉ 50 dòng gần nhất |
 | Giữ vị trí luôn bật | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | +WSS: ghi `location_mode`, chưa kiểm trên Android 10+. Cơ bản không adb: không bật lại được, máy nhắc con (màn hình toàn màn mỗi 2 phút, hoãn 10 phút tối đa 3 lần/ngày, + thông báo không vuốt được) + báo bố mẹ (0.9.56) |
 | Chỉ đường tới con (Google Maps, tab Vị trí) | ✅ | ✅ | ✅ | ✅ | ✅ | cần vị trí máy con; mở app/web Google Maps chỉ đường |

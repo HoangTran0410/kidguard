@@ -530,6 +530,7 @@ class Guard : Service() {
     private fun batteryCheck() {
         val bm = getSystemService(BatteryManager::class.java) ?: return
         val pct = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        store.addBat(System.currentTimeMillis(), pct, bm.isCharging)   // page chart (BatLog)
         val (armed, fire) = Events.batteryStep(store.batteryArmed, pct, bm.isCharging)
         if (armed != store.batteryArmed) store.batteryArmed = armed
         if (fire) { store.event("battery", R.string.ev_battery, pct); relay?.kick() }
@@ -592,6 +593,7 @@ class Guard : Service() {
             .put("log", store.logs())
             .put("history", store.history)
             .put("track", store.track(2))
+            .put("batLog", store.batLog(2))
             .put("calls", Calls.recent(this)).put("callsCap", Calls.cap(this))
             .put("requests", store.requests())
             .put("refused", RefuseLogic.live(store.refusedRaw(), r, now))

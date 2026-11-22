@@ -1683,12 +1683,14 @@ export function mergeState(old, part) {
     for (const x of Array.isArray(a.set) ? a.set : []) if (x && typeof x.pkg === "string") by.set(x.pkg, x);
     s.apps = [...by.values()].sort((x, y) => (+y.ms || 0) - (+x.ms || 0));
   }
-  const tk = part._trk;
-  if (tk && typeof tk === "object") {
-    const cur = Array.isArray(old.track) ? old.track : [];
+  // append-only point lists: track (_trk) and battery history (_bat, 2026-11-22)
+  for (const [k, f] of [["track", "_trk"], ["batLog", "_bat"]]) {
+    const tk = part[f];
+    if (!tk || typeof tk !== "object") continue;
+    const cur = Array.isArray(old[k]) ? old[k] : [];
     const last = cur.length ? +cur[cur.length - 1][0] || 0 : 0;
     const add = (Array.isArray(tk.add) ? tk.add : []).filter(p => Array.isArray(p) && +p[0] > last);
-    s.track = cur.concat(add).filter(p => +p[0] >= (+tk.from || 0));
+    s[k] = cur.concat(add).filter(p => +p[0] >= (+tk.from || 0));
   }
   return s;
 }

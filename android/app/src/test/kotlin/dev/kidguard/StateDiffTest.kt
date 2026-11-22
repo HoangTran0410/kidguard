@@ -36,6 +36,17 @@ class StateDiffTest {
         assertEquals(30L, tk.getJSONArray("add").getJSONArray(0).getLong(0))
     }
 
+    @Test fun batteryHistoryGoesAsNewPointsOnly() {   // 2026-11-22: the whole batLog on every percent = ~600 KB/day
+        val bl = { ts: List<Long> -> JSONArray().apply { ts.forEach { put(JSONArray().put(it).put(80).put(0)) } } }
+        val d = StateDiff()
+        d.commit(d.build(st(1, 50, emptyList(), emptyList(), mapOf("batLog" to bl(listOf(10, 20)))), false).second)
+        val out = d.build(st(2, 49, emptyList(), emptyList(), mapOf("batLog" to bl(listOf(10, 20, 30)))), false).first
+        assertFalse(out.has("batLog"))
+        val b = out.getJSONObject("_bat"); assertEquals(10L, b.getLong("from")); assertEquals(30L, b.getJSONArray("add").getJSONArray(0).getLong(0))
+        val d2 = StateDiff(); d2.commit(d2.build(st(1, 50, emptyList(), emptyList()), false).second)   // worker has no batLog yet
+        assertTrue(d2.build(st(2, 50, emptyList(), emptyList(), mapOf("batLog" to bl(listOf(10)))), false).first.has("batLog"))
+    }
+
     @Test fun trackAgesOutAndClears() {
         val d = StateDiff(); d.commit(d.build(st(1, 50, emptyList(), listOf(10, 20)), false).second)
         val aged = d.build(st(1, 50, emptyList(), listOf(20)), false).first.getJSONObject("_trk")   // day rolled: same last, new from

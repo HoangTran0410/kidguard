@@ -147,6 +147,7 @@ L.en = {
   "mode.basic": "The kid's phone runs in basic mode (no Device Owner).\n\n• A locked app: KidGuard sends your kid back to the home screen instead of blocking it outright.\n• A tech-savvy kid can boot into Safe Mode to turn KidGuard off.\n\nFor a hard block: set the phone up again with Device Owner (see the Guide).",
   "mode.basicS": "Basic mode: a tech-savvy kid can get around it.",
   "ban.why": "Details", "ban.hide": "Hide for now",
+  "bat.h": "Battery history", "bat.now": "Now", "bat.chart": "Battery chart, 2 days", "bat.yest": "Yesterday", "bat.tip": "Touch the chart to see the battery at that time.", "bat.noData": "No data at this time (phone off or KidGuard stopped).", "bat.rate": "Drain when unplugged", "bat.rateV": "~{0}%/hour (last 24 h)", "bat.chNow": "Charging", "bat.chSince": "since {0} ({1}%)", "bat.chLast": "Last charge", "bat.chV": "{0} – {1} ({2}% → {3}%)", "bat.none": "No data yet. The chart shows after about 30 minutes.", "bat.old": "Update KidGuard on the kid's phone to see battery history.", "bat.note": "Green = charging. A break in the line = phone off or KidGuard stopped.",
   "pc.title": "Kid's phone", "pc.battery": "Battery", "pc.charging": "Charging", "pc.on": "Screen on", "pc.off": "Screen off", "pc.screen": "Screen",
   "tm.d": "<b>Tamper protection:</b> basic mode, a child who knows phones can get around it. Device Owner closes those ways.",
   "tm.see": "How a child gets around it, what upgrading needs",

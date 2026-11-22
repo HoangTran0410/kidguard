@@ -215,7 +215,7 @@ class Relay(private val g: Guard) {
             // the relay kicked, a command needs its ack, or the idle interval is over
             val coarse = JSONObject(stateText).apply {
                 // relayOk = this phone's last good sync: it changes on every sync, so keeping it made each tick a sync (2026-11-17: 1 msg / 20 s)
-                for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn", "relayOk")) remove(k)
+                for (k in arrayOf("t", "usedMs", "leftMs", "current", "battery", "charging", "screenOn", "relayOk", "batLog")) remove(k)
                 optJSONObject("net")?.let { for (k in arrayOf("rssi", "bars", "mbps")) it.remove(k) }   // signal wobbles: not a reason to sync
                 optJSONArray("apps")?.let { a -> for (i in 0 until a.length()) a.optJSONObject(i)?.let { it.remove("ms"); it.remove("mb") } }
             }.toString().hashCode()

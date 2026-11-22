@@ -718,6 +718,16 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   (t ms, lat/lon 5 decimals, acc m int). Permissions: manifest declares ACCESS_BACKGROUND_LOCATION; as Device Owner
   call `setPermissionGrantState(GRANTED)` for FINE/COARSE/BACKGROUND location.
 - State: `"track": [[t,lat,lon,acc], …]` = points since local midnight of YESTERDAY (keeps state small).
+
+## Battery history (2026-11-22)
+- State: `"batLog": [[t, pct, charging 0/1], …]` = points since local midnight of YESTERDAY (`BatLog.kt`, Store pref `batLog`,
+  7 days / 3000 points kept on the phone). A point is stored by `Guard.batteryCheck` (every tick) when the percent or
+  charging changes, else every 30 min. No point for > 90 min = no data (phone off / app stopped): the page breaks the line.
+- Relay: sent like `track` (append-only): partial states carry `"_bat":{"from":<first t>,"add":[new points]}` (whole
+  `"batLog"` when the worker's last point is gone); left out of the WS "something the parent sees changed" hash.
+- Page: the battery cell of "Điện thoại của con" opens a sheet: 2-day line chart (green = charging, touch = time + %),
+  drain %/h over unplugged stretches of the last 24 h, last charge (from - to, % -> %). No `batLog` (older kid app) =
+  "update KidGuard on the kid's phone".
 - LAN: `GET /api/track?days=7` -> `{"track": [...]}` (all stored points, max 7 days).
 - Page "Vị trí" tab: map of the chosen day (Hôm nay / Hôm qua; via LAN also older days) drawn WITHOUT external
   scripts: OSM tiles as <img> (`https://tile.openstreetmap.de/{z}/{x}/{y}.png` first, `https://tile.openstreetmap.org/...`

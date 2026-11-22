@@ -608,6 +608,21 @@ class Store private constructor(private val app: Context) {
         return out
     }
 
+    /** Battery history for the page chart ([BatLog]); the last point is kept in memory so a tick with no change reads no prefs. */
+    @Volatile private var batLast: IntArray? = null   // [pct, charging] of the newest stored point
+    @Volatile private var batLastT = 0L
+    @Synchronized private fun batAll(): JSONArray = runCatching { JSONArray(p.getString("batLog", "[]")) }.getOrDefault(JSONArray())
+    @Synchronized fun addBat(now: Long, pct: Int, charging: Boolean) {
+        val l = batLast
+        if (l != null && l[0] == pct && l[1] == (if (charging) 1 else 0) && now - batLastT in 0 until BatLog.HEART_MS) return
+        val a = BatLog.add(batAll(), now, pct, charging)
+        if (a != null) p.edit().putString("batLog", a.toString()).apply()
+        val q = (a ?: batAll()).let { if (it.length() > 0) it.optJSONArray(it.length() - 1) else null } ?: return
+        batLast = intArrayOf(q.optInt(1), q.optInt(2)); batLastT = q.optLong(0)
+    }
+    /** Points since local midnight [days]-1 days ago (state: 2 = today + yesterday). */
+    @Synchronized fun batLog(days: Int): JSONArray = BatLog.since(batAll(), Usage.midnightAgo(days.coerceIn(1, 7) - 1))
+
     @get:Synchronized @set:Synchronized var suspendedByUs: Set<String>
         get() = p.getStringSet("susp", emptySet())!!.toSet()
         set(v) { p.edit().putStringSet("susp", v).commit() }   // must survive a crash: it is what release / the loop undo

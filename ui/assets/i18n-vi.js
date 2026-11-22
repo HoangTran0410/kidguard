@@ -151,6 +151,7 @@ L.vi = {
   "mode.basic": "Máy con đang chạy chế độ cơ bản (chưa cài Device Owner).\n\n• App bị khoá: KidGuard đưa con về màn hình chính thay vì chặn hẳn.\n• Con rành máy có thể khởi động vào Safe Mode để tắt KidGuard.\n\nMuốn chặn chắc chắn: cài lại máy con bằng Device Owner (xem Hướng dẫn).",
   "mode.basicS": "Chế độ cơ bản: con rành máy vẫn có thể lách.",
   "ban.why": "Chi tiết", "ban.hide": "Ẩn tạm",
+  "bat.h": "Lịch sử pin", "bat.now": "Bây giờ", "bat.chart": "Biểu đồ pin 2 ngày", "bat.yest": "Hôm qua", "bat.tip": "Chạm vào biểu đồ để xem pin lúc đó.", "bat.noData": "Không có số liệu lúc này (máy tắt hoặc KidGuard bị dừng).", "bat.rate": "Tụt khi không sạc", "bat.rateV": "~{0}%/giờ (24 giờ qua)", "bat.chNow": "Đang sạc", "bat.chSince": "từ {0} ({1}%)", "bat.chLast": "Lần sạc gần nhất", "bat.chV": "{0} – {1} ({2}% → {3}%)", "bat.none": "Chưa có số liệu. Biểu đồ hiện sau khoảng 30 phút.", "bat.old": "Cập nhật KidGuard trên máy của con để xem lịch sử pin.", "bat.note": "Vùng xanh = đang sạc. Đường bị ngắt = máy tắt hoặc KidGuard bị dừng.",
   "pc.title": "Điện thoại của con", "pc.battery": "Pin", "pc.charging": "Đang sạc", "pc.on": "Màn hình bật", "pc.off": "Màn hình tắt", "pc.screen": "Màn hình",
   "tm.d": "<b>Chống lách:</b> chế độ cơ bản, bé rành máy vẫn lách được. Device Owner chặn các đường đó.",
   "tm.see": "Bé lách được gì, nâng cấp cần gì",
