@@ -145,4 +145,21 @@ object TimetableLogic {
 
     /** Rows of the week view for one session: the longest list among [days] (0 = session not used). */
     fun rows(tt: JSONObject, days: List<Int>, pm: Boolean): Int = days.maxOfOrNull { session(tt, it, pm).size } ?: 0
+
+    /**
+     * The timetable for the parent page (state `timetable`, 2026-11-23): {days: {"1": {am: [subject…], pm: […]}}, bells: {am:
+     * [[start, end]…], pm: […]}} with the bells resolved (defaults when the kid set none). Null when no day has a period.
+     */
+    fun forParent(tt: JSONObject?): JSONObject? {
+        if (tt == null) return null
+        val days = JSONObject()
+        for (d in 1..7) {
+            val am = session(tt, d, false); val pm = session(tt, d, true)
+            if (am.isEmpty() && pm.isEmpty()) continue
+            days.put(d.toString(), JSONObject().put("am", JSONArray(am)).put("pm", JSONArray(pm)))
+        }
+        if (days.length() == 0) return null
+        val b = { pm: Boolean -> JSONArray().apply { bells(tt, pm).forEach { put(JSONArray().put(it[0]).put(it[1])) } } }
+        return JSONObject().put("days", days).put("bells", JSONObject().put("am", b(false)).put("pm", b(true)))
+    }
 }

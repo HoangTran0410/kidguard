@@ -98,6 +98,7 @@ const SHOTS = [
   { name: "log-cal", js: `goTab("log"); setTimeout(() => document.querySelector("[data-dp=log]").click(), 400)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
   { name: "settings-rules", js: `goTab("set"); setTimeout(() => { const r = document.querySelector('[data-sec="s-kid"] summary, [data-sec="s-kid"] [role=button], [data-sec="s-kid"]'); if (r) r.click(); }, 400)`, ready: `document.querySelector("#rxSave")`, scrollTo: "#rxSave", settle: 600 },
   // copy rules from another kid end to end: Mia's dailyMin lands in Bin's edit, Bin's PIN state stays (2026-11-23)
+  { name: "rules-tt", full: 1, js: `goTab("rules"); setTimeout(() => { subOpen("r-sch"); setTimeout(() => { document.querySelector('[data-ttd="1"]').click(); setTimeout(() => document.querySelector('[data-ttc="3:am:1"]').click(), 300); }, 400); }, 400)`, ready: `document.querySelector(".ttg button.lk")` },
   { name: "rules-copy", js: `goTab("set"); setTimeout(() => { document.querySelector('[data-sec="s-kid"]').click(); setTimeout(() => { window.__d0 = edit.dailyMin; $("#rxCopy").click(); setTimeout(() => $("#askOk").click(), 700); }, 400); }, 400)`, ready: `/quy tắc|Rules applied/i.test($("#toast").textContent)`, settle: 300 },
   { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, scrollTo: "#awaySec", settle: 600 },
   // the watch card with two connected watches (parents list of kind "watch", docs/protocol.md "Watch connect")

@@ -4,9 +4,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** A bedtime-like window on chosen days (ISO 1=Mon..7=Sun). It may cross midnight and then belongs to the day it starts. */
-data class Schedule(val name: String, val on: Boolean, val days: Set<Int>, val start: String, val end: String) {
+/** [tt]: made by the page from locked timetable periods (`ttLock`); enforced like any other window. */
+data class Schedule(val name: String, val on: Boolean, val days: Set<Int>, val start: String, val end: String, val tt: Boolean = false) {
     fun toJson(): JSONObject = JSONObject().put("name", name).put("on", on).put("days", JSONArray(days.sorted()))
-        .put("start", start).put("end", end)
+        .put("start", start).put("end", end).apply { if (tt) put("tt", true) }
 
     /** [dow]: ISO weekday of today. */
     fun active(minute: Int, dow: Int): Boolean {
@@ -26,7 +27,7 @@ data class Schedule(val name: String, val on: Boolean, val days: Set<Int>, val s
             val a = o.optJSONArray("days") ?: return null
             val days = (0 until a.length()).map { a.optInt(it, 0) }.filter { it in 1..7 }.toSet()
             if (days.isEmpty()) return null
-            return Schedule(o.optString("name", "").take(40), o.optBoolean("on", true), days, st, en)
+            return Schedule(o.optString("name", "").take(40), o.optBoolean("on", true), days, st, en, o.optBoolean("tt", false))
         }
     }
 }
@@ -181,6 +182,10 @@ data class Rules(
     val dailySavedMin: Int = -1,             // -1 = not paused
     val dailySavedBy: List<Int> = emptyList(),
     val schedules: List<Schedule> = emptyList(),
+    // 2026-11-23 timetable locks (page only reads / writes them): the cells the parent locked ("1:am:0" = Monday, morning,
+    // period 1) and the bells they were turned into schedules with (sig), so the page can tell the kid changed the bells.
+    val ttCells: List<String> = emptyList(),
+    val ttSig: String = "",
     val blockNew: Boolean = false,           // apps installed after setup stay blocked until approved
     val approved: Set<String> = emptySet(),
     val lockLocation: Boolean = true,
@@ -257,6 +262,7 @@ data class Rules(
         .put("dailyByDay", JSONArray(dailyByDay))
         .apply { if (dailySavedMin >= 0) put("dailySaved", JSONObject().put("min", dailySavedMin).put("byDay", JSONArray(dailySavedBy))) }
         .put("schedules", JSONArray().apply { schedules.forEach { put(it.toJson()) } })
+        .put("ttLock", JSONObject().put("cells", JSONArray(ttCells)).put("sig", ttSig))
         .put("blockNew", blockNew).put("approved", JSONArray(approved.sorted()))
         .put("lockLocation", lockLocation).put("noAirplane", noAirplane).put("frpIds", JSONArray(frpIds)).put("safeDns", safeDns).put("safeDnsPauseUntil", safeDnsPauseUntil).put("noVpn", noVpn).put("noIncognito", noIncognito).put("webBlock", JSONArray(webBlock)).put("webAllow", JSONArray(webAllow)).put("tsKeep", tsKeep).put("trackMin", trackMin).put("vpnPause", JSONArray(vpnPause.sorted())).put("accPause", JSONArray(accPause.sorted())).put("devPause", JSONArray(devPause.sorted())).put("tcpPause", JSONArray(tcpPause.sorted()))
         .put("showWatching", showWatching).put("autoUpdate", autoUpdate)
@@ -339,6 +345,8 @@ data class Rules(
                 schedules = o.optJSONArray("schedules")?.let { a ->
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Schedule::fromJson) }.take(20)
                 } ?: emptyList(),
+                ttCells = o.optJSONObject("ttLock")?.optJSONArray("cells").strings().filter { Regex("[1-7]:(am|pm)(:[0-7])?").matches(it) }.distinct().take(120),
+                ttSig = (o.optJSONObject("ttLock")?.optString("sig", "") ?: "").take(400),
                 chores = o.optJSONArray("chores")?.let { a ->
                     (0 until a.length()).mapNotNull { a.optJSONObject(it)?.let(Chore::fromJson) }.distinctBy { it.id }.take(Chore.MAX)
                 } ?: emptyList(),

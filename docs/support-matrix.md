@@ -40,6 +40,7 @@ Cột "Relay": chức năng có đi qua Relay được không (LAN / Tailscale /
 | Giới hạn giờ, lịch, giờ ngủ, nhóm app | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: đẩy về Home bằng Trợ năng (cần Trợ năng + Dữ liệu sử dụng + Quản trị) |
 | Thêm giờ luôn có tác dụng (`passUntil`, nút Kết thúc, `unlockEnd`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Duyệt lúc giờ ngủ / lịch / hết giờ: mở N phút rồi khóa lại. Chặn thật và app mới vẫn chặn. CB: như giới hạn giờ (đẩy về Home) |
 | Giờ ngủ từng đêm (`bedByDay`) + "+1 phút" (`oneMore`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | CB: như giờ ngủ. +1 phút là pass 1 phút cục bộ, một lần mỗi lần khóa |
+| Thời khoá biểu = lịch học (`state.timetable`, khoá từng tiết / buổi / ngày qua `ttLock` → `schedules` `tt`) | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Từ 0.9.80. Con tạo trên Kid Home (bản kid), trang chỉ xem; khoá = lịch thường nên CB như lịch học. Bản Home riêng không gửi |
 | Chặn app | ✅ | ⚠️ | ⚠️ | ⚠️ | ✅ | Như trên. DO chặn cả app mới trước lần mở đầu; CB chặn khi mở |
 | Tạm dừng nhạc/video của app bị đẩy ra | — | ✅ | ✅ | ✅ | — | Cần quyền đọc thông báo |
 | App ngân hàng (tạm tắt Trợ năng, `accPause`) | ✅ | ❌ | ✅ | ✅ | ✅ | Cần WSS để bật lại. CB: lúc tạm tắt, KidGuard xem app đang mở 2 s/lần, mở app bị chặn thì bật lại ngay. Mở lại app ngân hàng từ nền: DO tự được, CB cần quyền "hiển thị trên ứng dụng khác". Mở từ thông báo thì giữ deep link |

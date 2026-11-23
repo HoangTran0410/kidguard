@@ -60,7 +60,15 @@ function stateOf(name) {
   f.t = NOW - 18e3;
   if (name === "bin") f.track = trackOf().filter(p => p[0] >= midnight.getTime() - U.d);
   if (name === "bin") f.batLog = batLogOf(f.battery, f.charging);
+  if (name === "bin" && !f.timetable) f.timetable = ttOf();
   return f;
+}
+// Kid Home timetable (TimetableLogic.forParent): Mon-Fri mornings, two afternoons, default bells
+function ttOf() {
+  const g = (t0, n) => Array.from({ length: n }, (_, i) => { const s = t0 + i * 50 + (i >= 2 ? 15 : 0); return [s, s + 45]; });
+  const A = ["Toán", "Tiếng Việt", "Anh", "Khoa học", "Đạo đức"], B = ["Tiếng Việt", "Toán", "Thể dục", "", "Âm nhạc"];
+  const days = {}; for (let d = 1; d <= 5; d++) days[d] = { am: (d % 2 ? A : B).slice(0, d === 3 ? 4 : 5), pm: d === 2 || d === 4 ? ["Mĩ thuật", "Tin học"] : [] };
+  return { days, bells: { am: g(420, 5), pm: g(810, 3) } };
 }
 // battery since yesterday 0:00 (BatLog.kt points [t, pct, charging]): charged overnight, drained by day, a top-up in the
 // evening, off 1:00-3:00 (a gap in the line), unplugged at 7:00 and draining to the fixture's level now

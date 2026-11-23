@@ -68,4 +68,13 @@ class TimetableLogicTest {
         assertEquals(listOf(420, 470, 545, 595, 645), b.map { it[0] })
         assertEquals(3, TimetableLogic.rows(tt, listOf(1, 2), false)); assertEquals(2, TimetableLogic.rows(tt, listOf(1), true))
     }
+
+    @Test fun forParentResolvesBellsAndSkipsEmpty() {   // owner 2026-11-23: one timetable, the parent picks periods to lock
+        assertEquals(null, TimetableLogic.forParent(JSONObject()))
+        val tt = TimetableLogic.withSession(JSONObject(), 1, false, listOf("Toán", "", "Văn"))
+        val o = TimetableLogic.forParent(tt)!!
+        assertEquals(3, o.getJSONObject("days").getJSONObject("1").getJSONArray("am").length())
+        assertFalse(o.getJSONObject("days").has("2"))
+        assertEquals(420, o.getJSONObject("bells").getJSONArray("am").getJSONArray(0).getInt(0))   // default bells 7:00
+    }
 }

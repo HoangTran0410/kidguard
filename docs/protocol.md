@@ -17,7 +17,9 @@ shape, say so in your report instead of silently diverging.
   "bedtime": {"on": true, "start": "21:30", "end": "06:30"},
   "schedules": [                   // NEW: like bedtime but on chosen days; window may cross midnight (it belongs to the day it starts)
     {"name": "Giờ học", "on": true, "days": [1,2,3,4,5], "start": "07:00", "end": "11:30"}   // days: ISO 1=Mon..7=Sun
+    // 0.9.80: "tt": true = made by the page from locked timetable periods (see "Timetable locks"); enforced the same way
   ],
+  "ttLock": {"cells": ["1:am:0", "3:pm:1"], "sig": "…"},   // 0.9.80, page-only: locked timetable periods + the bells they were made from
   "pausedUntil": 0,
   "bonus": {"day": "2026-11-06", "min": 30},   // extra minutes on top of that day's limit; ignored when the day has no limit (base 0)
   "blockNew": true,                // NEW: apps installed after setup stay blocked (reason "new") until approved
@@ -728,6 +730,18 @@ Steps 1-6 are identical on all four paths. `SelfSetup` omits steps 7-8 (`am star
   (t ms, lat/lon 5 decimals, acc m int). Permissions: manifest declares ACCESS_BACKGROUND_LOCATION; as Device Owner
   call `setPermissionGrantState(GRANTED)` for FINE/COARSE/BACKGROUND location.
 - State: `"track": [[t,lat,lon,acc], …]` = points since local midnight of YESTERDAY (keeps state small).
+
+## Timetable locks (2026-11-23, kid 0.9.80)
+- One school schedule: the kid makes the timetable on Kid Home (layout file `timetable`); the kid flavor sends it in the
+  state as `"timetable": {"days": {"1": {"am": [subject…], "pm": […]}}, "bells": {"am": [[start, end]…], "pm": […]}}`
+  (`TimetableLogic.forParent`: minutes, bells resolved to the defaults when the kid set none, days with no period left
+  out, key absent = no timetable). Read-only on the page.
+- Default = nothing locked. The page (Luật > Thời khoá biểu) locks a period / a session / a day: cell `"<day>:<am|pm>:<index>"`
+  in rules `ttLock.cells` (max 120); the page turns them into `schedules` entries with `"tt": true` (back-to-back periods =
+  one window, the same window on several days = one entry) at the bells of that moment, and stores those bells as
+  `ttLock.sig` (JSON of `timetable.bells`). The phone only keeps both. Bells changed later (sig differs) = the locks keep
+  the old times; the page says so with "Cập nhật giờ khoá" (rebuild). The kid can't move a lock by editing bells.
+- Schedules without `tt` are shown under "Khung giờ khác" as before.
 
 ## Battery history (2026-11-22)
 - State: `"batLog": [[t, pct, charging 0/1], …]` = points since local midnight of YESTERDAY (`BatLog.kt`, Store pref `batLog`,

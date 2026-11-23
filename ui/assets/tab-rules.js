@@ -195,10 +195,10 @@ function ruleSecs(r) {
     wind: secP("r-wind", "moon", t("wd.h"), t("sd.wind"), C.wind, windBody(r)),
     kind: secP("r-kind", "notebook-pen", t("kn.h"), t("sd.kind"), C.kind, kindBody(r)),
     home: secP("r-home", "house", t("hm.h"), t("sd.home"), C.home, homeBody(r)),
-    sch: secP("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${r.schedules.map((x, i) => `<div class="sch" data-s="${i}">
+    sch: secP("r-sch", "book-open", t("sch.h"), t("sd.sch"), C.sch, `    ${tt.html(r)}${r.schedules.map((x, i) => x.tt ? "" : `<div class="sch" data-s="${i}">
       <div class="row"><input id="f-sn${i}" class="sp" data-f="name" placeholder="${esc(t("sch.namePh"))}" aria-label="${esc(t("sch.name"))}" value="${esc(x.name)}"><label class="row"><input type="checkbox" data-f="on" ${x.on ? "checked" : ""}> ${t("on")}</label></div>
       ${chipRow(t("wd").map((n, d) => chipBtn(`data-day="${d + 1}"`, n, (x.days || []).includes(d + 1))), { style: "margin:8px 0" })}
-      <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`}
+      <div class="row"><span class="row tm">${t("from")} <input type="time" id="f-ss${i}" data-f="start" aria-label="${esc(t("start"))}" value="${esc(x.start)}"> ${t("to")} <input type="time" id="f-se${i}" data-f="end" aria-label="${esc(t("end"))}" value="${esc(x.end)}"></span><span class="sp"></span><button class="bad" data-del="${i}">${ic("trash-2")} ${t("delete")}</button></div><div data-sw>${timeWarn(x, x.on, true)}</div></div>`).join("") || (st && st.timetable ? "" : `<p class="mute">${ic("inbox")} ${t("sch.none")}</p>`)}
     <button id="addSch">${ic("plus")} ${t("sch.add")}</button>`),
     zone: secP("r-zone", "map-pin", t("zone.h"), t("sd.zone"), C.zone, `    ${r.zones.map((z, i) => `<div class="sch zrow" data-z="${i}"><span class="ib">${ic("map-pin")}</span><span class="x"><b>${esc(z.name || t("zone.newName"))}</b><span class="mute">${t("zone.r")} ${+z.r || 150} m${zoneOk(z) ? "" : " · " + t("zone.badCoord")}</span></span><button data-zedit="${i}">${ic("map")} ${t("zone.editB")}</button><button class="bad" data-zdel="${i}" aria-label="${esc(t("delete"))}">${ic("trash-2")}</button></div>`).join("") || `<p class="mute">${ic("inbox")} ${t("zone.none")}</p>`}
     <button id="addZone" ${r.zones.length >= 10 ? "disabled" : ""}>${ic("plus")} ${t("zone.add")}</button>
@@ -367,6 +367,7 @@ function rulesWire(b, r) {
     box.querySelectorAll("[data-day]").forEach(d => d.onclick = () => { const n = +d.dataset.day; x.days = (x.days || []).includes(n) ? x.days.filter(v => v !== n) : (x.days || []).concat(n).sort(); changed(); render(); });
     box.querySelector("[data-del]").onclick = async () => { if (!(await ask(t("sch.askDel"), t("delete"), true))) return; r.schedules.splice(+box.dataset.s, 1); changed(); render(); };
   });
+  tt.wire(r);
   $("#addSch").onclick = () => { r.schedules.push({ name: t("sch.class"), on: true, days: [1, 2, 3, 4, 5], start: "07:00", end: "11:30" }); changed(); render(); };
   $("#f-tm").onchange = e => { r.trackMin = +e.target.value; changed(); };
   $("#f-bn").onchange = e => { const v = e.target.value; r.blockNew = v !== "off"; r.noInstall = v === "none"; changed(); };
@@ -605,3 +606,60 @@ function callsWire(r, $) {
   $("#f-cnum").onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); add(); } };
   document.querySelectorAll("[data-cdel]").forEach(x => x.onclick = () => { r.calls.allow.splice(+x.dataset.cdel, 1); changed(); render(); });
 }
+
+// ---- Timetable = the one school schedule (owner 2026-11-23): the kid makes it on Kid Home (state `timetable`, bells
+// resolved); by default it is only shown. The parent taps a period, a session (Sáng / Chiều) or a day to lock it: rules
+// `ttLock.cells` ("1:am:0") are turned into ordinary schedules with `tt: true` (back-to-back periods = one window, the
+// same window on several days = one schedule) at the bells of that moment (`ttLock.sig`): the kid changing the bells
+// later never moves a lock; the page offers "update" instead.
+const tt = (() => {
+  const SS = ["am", "pm"], hm = m => String(Math.floor(m / 60)).padStart(2, "0") + ":" + String(m % 60).padStart(2, "0");
+  const sigOf = x => JSON.stringify(x.bells || {});
+  const n = (x, d, ss) => Math.min(((x.days[d] || {})[ss] || []).length, ((x.bells || {})[ss] || []).length);
+  const cellsOf = (x, f) => { const o = []; for (const d of Object.keys(x.days)) for (const ss of SS) for (let i = 0; i < n(x, d, ss); i++) if (f(d, ss, i)) o.push(`${d}:${ss}:${i}`); return o; };
+  function rebuild(r, x) {
+    const on = new Set(r.ttLock.cells), wins = new Map();
+    for (const d of Object.keys(x.days)) for (const ss of SS) {
+      const b = x.bells[ss], m = n(x, d, ss);
+      for (let i = 0; i < m; i++) {
+        if (!on.has(`${d}:${ss}:${i}`)) continue;
+        let j = i; while (j + 1 < m && on.has(`${d}:${ss}:${j + 1}`)) j++;
+        const k = hm(b[i][0]) + "-" + hm(b[j][1]); if (!wins.has(k)) wins.set(k, []); wins.get(k).push(+d); i = j;
+      }
+    }
+    r.schedules = r.schedules.filter(s => !s.tt).concat([...wins].map(([k, days]) => ({ name: t("sch.class"), on: true, days: [...new Set(days)].sort(), start: k.slice(0, 5), end: k.slice(6), tt: true })));
+    r.ttLock = { cells: [...on], sig: sigOf(x) };
+  }
+  function html(r) {
+    const x = st && st.timetable;
+    if (!x || !x.days) return `<p class="mute">${ic("book-open")} ${t("tt.none")}</p>`;
+    const on = new Set(r.ttLock.cells), ds = Object.keys(x.days).sort();
+    const dn = d => t("wd")[+d - 1];
+    let rows = `<tr><th></th>${ds.map(d => `<th><button type="button" data-ttd="${d}" aria-label="${esc(t("tt.day", dn(d)))}">${dn(d)}</button></th>`).join("")}</tr>`;
+    for (const ss of SS) {
+      const m = Math.max(0, ...ds.map(d => n(x, d, ss))); if (!m) continue;
+      rows += `<tr><th colspan="${ds.length + 1}"><button type="button" class="tts" data-tts="${ss}">${ic("lock")} ${t("tt." + ss)}</button></th></tr>`;
+      for (let i = 0; i < m; i++) rows += `<tr><th class="ttn">${i + 1}<small>${hm(x.bells[ss][i][0])}</small></th>${ds.map(d => {
+        if (i >= n(x, d, ss)) return "<td></td>";
+        const sub = x.days[d][ss][i] || "", k = `${d}:${ss}:${i}`, lk = on.has(k);
+        return `<td><button type="button" data-ttc="${k}" class="${lk ? "lk" : ""} ${sub ? "" : "fr"}" aria-pressed="${lk}" title="${esc(sub || t("tt.freeP"))}">${esc(sub || "–")}</button></td>`;
+      }).join("")}</tr>`;
+    }
+    const lks = r.schedules.filter(s => s.tt && s.on);
+    const moved = r.ttLock.cells.length && r.ttLock.sig && r.ttLock.sig !== sigOf(x);
+    return `<p class="mute">${t("tt.p")}</p><div class="tblw"><table class="ttg"><tbody>${rows}</tbody></table></div>
+      <p class="mute">${lks.length ? ic("lock") + " " + t("tt.locked", lks.map(s => s.days.map(dn).join(", ") + " " + s.start + "–" + s.end).join("; ")) : t("tt.free")}</p>
+      ${moved ? alertBox("warn", "triangle-alert", t("tt.moved") + ` <button type="button" id="ttUpd">${ic("refresh-cw")} ${t("tt.upd")}</button>`) : ""}
+      ${r.schedules.some(s => !s.tt) ? `<h3 class="pth" style="margin-top:14px">${ic("clock")} <b>${t("tt.other")}</b></h3>` : ""}`;
+  }
+  function wire(r) {
+    const x = st && st.timetable; if (!x || !x.days) return;
+    const set = (keys, lock) => { const on = new Set(r.ttLock.cells); keys.forEach(k => lock ? on.add(k) : on.delete(k)); r.ttLock.cells = [...on]; rebuild(r, x); changed(); render(); };
+    const flip = keys => set(keys, !keys.every(k => r.ttLock.cells.includes(k)));
+    document.querySelectorAll("[data-ttc]").forEach(b => b.onclick = () => flip([b.dataset.ttc]));
+    document.querySelectorAll("[data-ttd]").forEach(b => b.onclick = () => flip(cellsOf(x, d => d === b.dataset.ttd)));
+    document.querySelectorAll("[data-tts]").forEach(b => b.onclick = () => flip(cellsOf(x, (d, ss) => ss === b.dataset.tts)));
+    if ($("#ttUpd")) $("#ttUpd").onclick = () => { rebuild(r, x); changed(); render(); };
+  }
+  return { html, wire };
+})();

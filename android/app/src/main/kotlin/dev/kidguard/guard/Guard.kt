@@ -594,6 +594,7 @@ class Guard : Service() {
             .put("history", store.history)
             .put("track", store.track(2))
             .put("batLog", store.batLog(2))
+            .apply { if (!Flavor.HOME) runCatching { TimetableLogic.forParent(HomeFile.load(this@Guard)?.timetable) }.getOrNull()?.let { put("timetable", it) } }
             .put("calls", Calls.recent(this)).put("callsCap", Calls.cap(this))
             .put("requests", store.requests())
             .put("refused", RefuseLogic.live(store.refusedRaw(), r, now))

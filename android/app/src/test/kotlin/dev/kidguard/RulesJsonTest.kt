@@ -73,4 +73,15 @@ class RulesJsonTest {
         val r = Rules.fromJson(JSONObject("""{"chores":[$c],"zones":[$z]}"""))
         assertEquals(20, r.chores.size); assertEquals(10, r.zones.size)
     }
+
+    @Test fun timetableLocksRoundTrip() {   // 2026-11-23: ttLock cells + sig kept, schedule "tt" flag kept, junk cells dropped
+        val r = Rules.fromJson(JSONObject("""{"schedules":[{"name":"Giờ học","days":[1],"start":"07:00","end":"08:35","tt":true}],
+            "ttLock":{"cells":["1:am:0","1:am:1","9:am:0","x"],"sig":"am=420-465"}}"""))
+        assertEquals(listOf("1:am:0", "1:am:1"), r.ttCells)
+        assertEquals("am=420-465", r.ttSig)
+        val back = Rules.fromJson(r.toJson())
+        assertEquals(true, back.schedules[0].tt)
+        assertEquals(r.ttCells, back.ttCells)
+        assertFalse(Rules.fromJson(JSONObject("""{"schedules":[{"days":[1],"start":"07:00","end":"08:00"}]}""")).schedules[0].tt)
+    }
 }
