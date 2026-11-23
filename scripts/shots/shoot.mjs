@@ -32,7 +32,7 @@ const EXT = +arg("cdp", 0);
 // fake kids), two dead kids (Nam on the killed relay = Cloudflare 1101, Lan released = 410), and the app-only screens
 // (kid list, app settings, a released kid's page). Use with --only applist,appset,gone (or alone: all shots in app mode).
 const FAKE_APP = process.argv.includes("--app");
-const CDP = EXT || 9333;
+const CDP = EXT || +arg("port", 9333);   // --port N: another free port when 9333 is taken (e.g. an adb forward)
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const NOW = (() => { const d = new Date(); d.setHours(16, 20, 0, 0); return d.getTime(); })();
 
@@ -51,6 +51,10 @@ const SHOTS = [
     { name: "addkid-miss", bare: 1, js: `addScreen.pick("123456", "http://127.0.0.1:9")`, ready: `document.querySelector("#ap1") && document.querySelector("#ac").value === "123456"`, settle: 500 },
     { name: "addkid-back", bare: 1, js: `appBoot(); addScreen(); setTimeout(() => history.back(), 300)`, ready: `!document.querySelector("#ac") && document.querySelector("#addKid")`, settle: 800 },
     { name: "appset", bare: 1, js: `goAppSettings()`, ready: `document.querySelector("#nhBox") && document.querySelector("#uiPk")`, settle: 800 },
+    // move to a new phone (2026-11-23): the screen after scanning the one-QR code of the old phone
+    { name: "move-recv", bare: 1, js: `xfer.screen(xfer.of(new URLSearchParams({ mv: JSON.stringify([["https://r.example", "0123456789abcdef", "a".repeat(32), "Bin"], ["https://r.example", "fedcba9876543210", "b".repeat(32), "Na"]]) })))`, ready: `document.querySelector("#mvGo")`, settle: 500 },
+    { name: "appset-move", bare: 1, js: `goAppSettings()`, ready: `document.querySelector("#bkSave")`, scrollTo: "#bkSave", settle: 600 },
+    { name: "backup-ask", bare: 1, js: `goAppSettings(); setTimeout(() => $("#bkSave").click(), 300)`, ready: `document.querySelector("#bkP2")`, settle: 500 },
     { name: "gone", bare: 1, js: `open(kids.find(k => k.name === "Lan"))`, ready: `document.querySelector("#forgetGone")`, settle: 800 },
     { name: "oldrelay", bare: 1, js: `open(kids.find(k => k.name === "Nam"))`, ready: `document.querySelector("#goneDel")`, settle: 800 },
   ] : []),
@@ -92,6 +96,9 @@ const SHOTS = [
   { name: "where-step", js: `goTab("where"); setTimeout(() => { scrSet(0); $("#scNext").click(); $("#scNext").click(); $("#scSpd").click(); }, 800)`, ready: `document.querySelector("#scL b") && $("#scSpd").textContent === "2×"`, settle: 600 },
   { name: "where-cal", js: `goTab("where"); setTimeout(() => document.querySelector("[data-dp=trk]").click(), 600)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
   { name: "log-cal", js: `goTab("log"); setTimeout(() => document.querySelector("[data-dp=log]").click(), 400)`, ready: `document.querySelector("#dpPop .dpg button")`, settle: 400 },
+  { name: "settings-rules", js: `goTab("set"); setTimeout(() => { const r = document.querySelector('[data-sec="s-kid"] summary, [data-sec="s-kid"] [role=button], [data-sec="s-kid"]'); if (r) r.click(); }, 400)`, ready: `document.querySelector("#rxSave")`, scrollTo: "#rxSave", settle: 600 },
+  // copy rules from another kid end to end: Mia's dailyMin lands in Bin's edit, Bin's PIN state stays (2026-11-23)
+  { name: "rules-copy", js: `goTab("set"); setTimeout(() => { document.querySelector('[data-sec="s-kid"]').click(); setTimeout(() => { window.__d0 = edit.dailyMin; $("#rxCopy").click(); setTimeout(() => $("#askOk").click(), 700); }, 400); }, 400)`, ready: `/quy tắc|Rules applied/i.test($("#toast").textContent)`, settle: 300 },
   { name: "settings-away", js: `goTab("set")`, ready: `document.querySelector("#awaySec")`, scrollTo: "#awaySec", settle: 600 },
   // the watch card with two connected watches (parents list of kind "watch", docs/protocol.md "Watch connect")
   { name: "settings-watch", js: `cur.relay = cur.relay || { url: "https://r.example", id: "0123456789abcdef", token: "e".repeat(48) }; st.relay = st.relay || { on: true }; rpS = { k: cur, at: Date.now(), list: [{ id: "a1", name: "Mẹ", kind: "web", at: Date.now() - 864e6, seen: Date.now() - 6e4, me: true }, { id: "b2", name: "Đồng hồ của bố", kind: "watch", dev: "Zepp - Amazfit Bip Max", at: Date.now() - 1728e5, seen: Date.now() - 3e5 }, { id: "c3", name: "Wear OS ảo", kind: "watch", dev: "Wear OS - sdk_gwear_arm64", at: Date.now() - 36e5, seen: Date.now() - 9e5 }], pinKnown: true }; goTab("set"); setTimeout(() => { subOpen("s-watch"); setTimeout(() => { wPaint(); const g = document.querySelector("#s-watch details, details"); document.querySelectorAll("details").forEach(d => d.open = true); }, 200); }, 300)`, ready: `document.querySelector("#wList [data-wx]")`, settle: 700 },

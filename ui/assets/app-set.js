@@ -62,6 +62,7 @@ function appSettings() {
     ${kidNf !== null && wantOn ? `<label class="row"><input type="checkbox" id="f-kidnf" ${kidNf === "true" ? "checked" : ""}><span class="sp">${t("notif.kid")}<br><span class="mute">${t("notif.kidN")}</span></span></label>` : ""}
     <button id="nSet">${ic("settings")} ${t("au.nOpen")}</button></div>
   ${lockCardHtml()}
+  ${xfer.card()}
   ${digestCardHtml()}
   ${notifHealthHtml()}
   <div class="card"><h2>${ic("download")} ${t("au.upd")}</h2><div id="updBox">${updBoxHtml()}</div>${uiPackHtml()}</div>
@@ -74,6 +75,7 @@ function appSettings() {
   });
   $("#f-notify").onchange = e => { kgCall("setNotify", e.target.checked ? "true" : "false"); if (e.target.checked) setTimeout(() => { if (kgCall("canNotify") === "false") toast("warn|" + t("notif.blockedShort")); appSettings(); }, 1500); else appSettings(); };
   $("#nSet").onclick = () => kgCall("openNotifSettings");
+  xfer.wire();
   if ($("#f-kidnf")) $("#f-kidnf").onchange = e => kgCall("setKidNotif", e.target.checked ? "true" : "false");
   if ($("#f-lock")) $("#f-lock").onchange = e => kgCall("setLock", e.target.checked ? "true" : "false");   // off: the phone asks first, then kgLock()
   const dgSave = () => kgCall("setDigest", $("#f-dg").checked ? "true" : "false", $("#f-dgat").value || "20:00");
@@ -233,3 +235,139 @@ function bankShow(pkg) {
   };
   setTimeout(find, 300);
 }
+
+// ---- Move to a new phone (owner 2026-11-23). Two ways, both in the parent-app settings:
+// 1. One QR = a fresh one-use relay invite (POST /c/<id>/invite, 10 min) per kid that has a relay link:
+//    ${SITE}/app/#mv=<JSON [[relay origin, id, inv, name], ...]>; the new phone asks a name once and joins each (own token).
+// 2. A backup file with every kid's access (tokens, LAN kids too), AES-GCM with a key from the parent's own password
+//    (PBKDF2-SHA256): {kidguard: "backup", v: 1, it, salt, iv, data}. Nothing leaves the phone unencrypted.
+const xfer = (() => {
+  let mv = null;   // {link, exp, ins: [names], outs: [names]}
+  const relayKids = () => kids.filter(k => k.via === "relay" || (k.relay && k.relay.url && k.relay.id));
+  const ub = u => { let s = ""; for (const x of u) s += String.fromCharCode(x); return btoa(s); };
+  const bu = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const keyOf = async (pw, salt, it) => crypto.subtle.deriveKey({ name: "PBKDF2", salt, iterations: it, hash: "SHA-256" },
+    await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]), { name: "AES-GCM", length: 256 }, false, ["encrypt", "decrypt"]);
+  const kidOut = x => ({ name: x.name, target: x.target, via: x.via, id: x.id, token: x.token, lv: x.lv, relay: x.relay });
+  const kidOk = x => x && (x.via === "relay" || x.via === "lan") && typeof x.id === "string" && typeof x.token === "string" && typeof x.target === "string";
+  const home = () => { reScreen = null; if (APP || onLan()) appBoot(); else listScreen(kids.filter(k => k.via === "relay")); };
+  const pwField = (id, ph) => `<input id="${id}" type="password" maxlength="64" autocomplete="new-password" placeholder="${esc(ph)}" aria-label="${esc(ph)}" style="width:100%;margin-bottom:10px">`;
+
+  function card() {
+    const n = relayKids().length;
+    return `<div class="card"><h2>${ic("smartphone")} ${t("mv.h")}</h2><p class="mute">${t("mv.p")}</p>
+      ${n ? `<button id="mvQr">${ic("scan-line")} ${t("mv.qr")}</button>` : `<p class="mute">${t("mv.none")}</p>`}<div id="mvBox">${mvHtml()}</div>
+      <h3 style="margin:16px 0 4px">${ic("lock")} ${t("bk.h")}</h3><p class="mute">${t("bk.p")}</p>
+      <div class="row" style="flex-wrap:wrap;gap:8px"><button id="bkSave">${ic("download")} ${t("bk.save")}</button><button id="bkLoad">${ic("upload")} ${t("bk.load")}</button></div>
+      <input type="file" id="bkFile" hidden></div>`;
+  }
+  function mvHtml() {
+    if (!mv || mv.exp <= Date.now()) return "";
+    return `<div class="totpqr"><div class="qrw" role="img" aria-label="${esc(t("mv.h"))}">${qrSvg(mv.link)}</div></div>
+      <p class="mute">${t("mv.in", mv.ins.map(esc).join(", "))} · <span id="mvLeft"></span></p>
+      ${mv.outs.length ? `<p class="mute">${ic("triangle-alert")} ${t("mv.out", mv.outs.map(esc).join(", "))}</p>` : ""}`;
+  }
+  function tick() {
+    const e = $("#mvLeft"); if (!e || !mv) return;
+    const s = Math.max(0, Math.round((mv.exp - Date.now()) / 1000));
+    if (!s) { mv = null; $("#mvBox").innerHTML = ""; return; }
+    e.textContent = t("mv.left", Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0")); setTimeout(tick, 1000);
+  }
+  async function makeQr(b) {
+    b.disabled = true;
+    const ins = [], names = [], outs = kids.filter(k => !relayKids().includes(k)).map(k => k.name || t("kid"));
+    for (const k of relayKids()) {
+      try {
+        const j = await rcall(k, "/invite", "POST", {});
+        if (!j || !/^[0-9a-f]{32}$/.test(j.inv || "")) throw new Error("x");
+        ins.push([rpOrigin(k), rpCred(k).id, j.inv, (k.name || "").slice(0, 40)]); names.push(k.name || t("kid"));
+      } catch { outs.push(k.name || t("kid")); }
+    }
+    b.disabled = false;
+    if (!ins.length) return toast("err|" + t("mv.fail"));
+    mv = { link: `${SITE}/app/#mv=${encodeURIComponent(JSON.stringify(ins))}`, exp: Date.now() + 600000, ins: names, outs };
+    if ($("#mvBox")) { $("#mvBox").innerHTML = mvHtml(); tick(); }
+  }
+  // the new phone: #mv=... (scanned in the parent app, or opened as a link)
+  function of(h) {
+    try {
+      const a = JSON.parse(h.get("mv") || "");
+      const l = Array.isArray(a) ? a.slice(0, 20).map(x => Array.isArray(x) && inviteOf(new URLSearchParams({ ri: x[0], rc: x[1], inv: x[2], n: x[3] || "" }))).filter(Boolean) : [];
+      return l.length ? l : null;
+    } catch { return null; }
+  }
+  function screen(list) {
+    reScreen = () => screen(list);
+    let nm = ""; try { nm = localStorage.getItem("kg.pname") || ""; } catch {}
+    $("#app").innerHTML = head(t("mv.h")) + `<div class="card"><h2>${ic("users")} ${t("mv.recv", list.length)}</h2>
+      <p>${list.map(o => esc(o.n || t("kid"))).join(", ")}</p><p class="mute">${t("mv.recvP")}</p>
+      <div class="pairf"><input id="mvN" maxlength="30" autocomplete="off" placeholder="${esc(t("jn.name"))}" aria-label="${esc(t("jn.name"))}" value="${esc(nm || KG_NAME)}"><button class="pri" id="mvGo">${ic("check")} ${t("mv.go", list.length)}</button></div>
+      <p class="err" id="mvE" role="alert"></p></div>`;
+    const go = $("#mvGo"), say = m => { $("#mvE").textContent = m; };
+    $("#mvN").onkeydown = e => { if (e.key === "Enter") go.click(); };
+    go.onclick = async () => {
+      const name = $("#mvN").value.trim(); if (!name) return say(t("jn.needName"));
+      say(""); go.disabled = true;
+      let added = 0; const dead = [], bad = [];
+      for (const o of list) {
+        try {
+          const r = await fetch((APP ? "/k/" + b64u(o.ri) : o.ri) + "/c/" + o.rc + "/join", { method: "POST", headers: { "Content-Type": "application/json", "X-KG-Name": KG_NAME }, body: JSON.stringify({ name, kind: APP ? "app" : "web", inv: o.inv }) });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || !j.token) { (j.error === "invite used or expired" ? dead : bad).push(o.n || t("kid")); continue; }
+          const k = { id: o.rc, token: j.token, name: o.n || t("kid"), via: "relay", target: o.ri, own: 1 };
+          kids = kids.filter(x => !(x.id === k.id && x.via === "relay")).concat(k); added++;
+        } catch { bad.push(o.n || t("kid")); }
+      }
+      if (added) { save(kids); try { localStorage.setItem("kg.pname", name); } catch {} }
+      if (!dead.length && !bad.length) { toast("ok|" + t("mv.done", added)); return home(); }
+      go.disabled = false;
+      say([dead.length ? t("mv.dead", dead.join(", ")) : "", bad.length ? t("mv.bad", bad.join(", ")) : ""].filter(Boolean).join(" "));
+      if (added) toast("ok|" + t("mv.done", added));
+    };
+  }
+  async function bkSave() {
+    if (!(window.crypto && crypto.subtle)) return toast("err|" + t("bk.noCrypto"));
+    let pw = "";
+    const ok = await ask(t("bk.askSave"), t("bk.save"), false, "", pwField("bkP1", t("bk.pw1")) + pwField("bkP2", t("bk.pw2")),
+      () => { const a = $("#bkP1").value, b2 = $("#bkP2").value; if (a.length >= 8 && a === b2) { pw = a; return true; } return false; });
+    if (!ok) return;
+    const salt = crypto.getRandomValues(new Uint8Array(16)), iv = crypto.getRandomValues(new Uint8Array(12)), it = 310000;
+    let pn = ""; try { pn = localStorage.getItem("kg.pname") || ""; } catch {}
+    const plain = new TextEncoder().encode(JSON.stringify({ v: 1, at: Date.now(), pname: pn, kids: kids.filter(kidOk).map(kidOut) }));
+    const data = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, await keyOf(pw, salt, it), plain));
+    const text = JSON.stringify({ kidguard: "backup", v: 1, it, salt: ub(salt), iv: ub(iv), data: ub(data) });
+    const name = "kidguard-backup-" + new Date().toISOString().slice(0, 10) + ".json";
+    if (APP && window.KGApp && KGApp.dlBegin) {
+      const id = KGApp.dlBegin(name, "application/json");
+      if (!id || !KGApp.dlChunk(id, ub(new TextEncoder().encode(text)))) { if (id) KGApp.dlEnd(id, "false"); return toast("err|" + t("bk.fail")); }
+      KGApp.dlEnd(id, "true");
+    } else fxSave(new Blob([text], { type: "application/json" }), name);
+    toast("ok|" + t("bk.saved", name));
+  }
+  async function bkLoad(file) {
+    if (!(window.crypto && crypto.subtle)) return toast("err|" + t("bk.noCrypto"));
+    let o; try { o = JSON.parse(await file.text()); } catch {}
+    if (!o || o.kidguard !== "backup" || !o.data || !o.salt || !o.iv) return toast("err|" + t("bk.bad"));
+    let pw = "";
+    const ok = await ask(t("bk.askLoad"), t("bk.load"), false, "", pwField("bkP", t("bk.pw")), () => { pw = $("#bkP").value; return !!pw; });
+    if (!ok) return;
+    let p;
+    try { p = JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: bu(o.iv) }, await keyOf(pw, bu(o.salt), +o.it || 310000), bu(o.data)))); }
+    catch { return toast("err|" + t("bk.wrong")); }
+    const list = (p && Array.isArray(p.kids) ? p.kids : []).filter(kidOk).map(kidOut);
+    if (!list.length) return toast("err|" + t("bk.bad"));
+    for (const k of list) kids = kids.filter(x => !(x.id === k.id && x.via === k.via)).concat(k);
+    save(kids);
+    if (p.pname) try { if (!localStorage.getItem("kg.pname")) localStorage.setItem("kg.pname", String(p.pname).slice(0, 30)); } catch {}
+    toast("ok|" + t("bk.done", list.length));
+    appSetOn = false; home();
+  }
+  function wire() {
+    if ($("#mvQr")) $("#mvQr").onclick = e => makeQr(e.currentTarget);
+    if (mv) tick();
+    if ($("#bkSave")) $("#bkSave").onclick = bkSave;
+    if ($("#bkLoad")) $("#bkLoad").onclick = () => $("#bkFile").click();
+    if ($("#bkFile")) $("#bkFile").onchange = e => { const f = e.target.files && e.target.files[0]; e.target.value = ""; if (f) bkLoad(f); };
+  }
+  return { card, wire, of, screen };
+})();

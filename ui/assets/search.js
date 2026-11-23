@@ -21,7 +21,7 @@ const QS = [
   ["set", "s-adv", "", "code", ["dev.h", "sd.dev", "anti.debug"]], ["set", "s-adv", "", "terminal", ["sh.h", "sd.sh", "sh.tcp"]],
   ["set", "s-remote", "", "globe", ["relay.h", "sd.relay"]], ["set", "s-remote", "", "route", ["ts.h", "sd.ts"]],
   ["set", "s-watch", "", "watch", ["watch.h", "sd.watch", "watch.go"]], ["set", "s-ai", "", "bot", ["ai.h", "sd.ai"]],
-  ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]], ["set", "s-kid", "", "user", ["set.name", "keep.h", "wz.redo"]],
+  ["set", "s-upd", "", "refresh-cw", ["upd.h", "sd.upd", "upd.auto"]], ["set", "s-kid", "", "user", ["set.name", "keep.h", "wz.redo", "rx.h"]],
   ["set", "s-tg", "", "send", ["tg.h", "tg.d"]], ["set", "s-feat", "", "list-checks", ["ft.h", "ft.d"]],
   ["set", "s-paired", "", "smartphone", ["paired.h", "sd.paired"]], ["set", "s-danger", "", "octagon-x", ["set.danger", "sd.danger"]],
   ["apps", "a-apps", "", "puzzle", ["as.list", "ap.appsD", "apps.search"]], ["apps", "a-clean", "", "eye-off", ["as.clean", "ap.cleanD", "clean.h"]],

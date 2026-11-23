@@ -63,4 +63,15 @@ class PowerLogicTest {
         assertTrue(LocPace.locateDue(61 * min, 50 * min, 30, 0, true))
         assertFalse(LocPace.locateDue(61 * min, 20 * min, 30, 5, true))
     }
+
+    @Test fun gpsAskedNextToFusedAndLongerOffline() {   // owner 2026-11-23: Wi-Fi-only phone, the whole trip missing
+        assertEquals(listOf("fused", "gps"), LocPace.providers(34, fused = true, network = true, gps = true))
+        assertEquals(listOf("fused"), LocPace.providers(34, fused = true, network = true, gps = false))
+        assertEquals(listOf("network", "gps"), LocPace.providers(27, fused = false, network = true, gps = true))
+        assertEquals(listOf("gps"), LocPace.providers(31, fused = false, network = false, gps = true))
+        assertTrue(LocPace.trackTimeoutMs(false) > LocPace.trackTimeoutMs(true))
+        assertTrue(LocPace.vague(true, 20f, 10 * 60_000))     // cached home fix handed back offline: wait for gps
+        assertTrue(LocPace.vague(true, 2000f, 0))             // cell tower
+        assertFalse(LocPace.vague(true, 20f, 5_000))
+    }
 }

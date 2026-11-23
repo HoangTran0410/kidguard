@@ -484,6 +484,16 @@ cookies), `OPTIONS` = `204`. Command `type`s are codes ("Command codes" above).
   No PIN known: only the FIRST parent may join (`pin:"none"`), later ones `403 {"error":"invite needed"}`.
 - `POST /c/<id>/invite {}` (a parent token) -> `{inv: 32 hex, exp}`: one use, 10 min, <= 5 open. `POST /c/<id>/join
   {name, kind, inv}` with NO `X-KG-Token` -> same reply with `pin:"inv"`; used / expired / unknown `403`. Two parents
+- Move to a new phone (2026-11-23, page only, `xfer` in `app-set.js`): the old phone makes one invite per kid that has a
+  relay link and shows ONE QR `${SITE}/app/#mv=<urlencoded JSON [[relay origin, id, inv, kid name], ...]>` (<= 20 kids;
+  LAN-only kids are listed as "not in it"). The new phone (scan, or the link) asks a parent name once and `join`s each.
+  The old phone keeps its own token until removed in "Bố mẹ".
+- Backup file (2026-11-23, page only): `{"kidguard":"backup","v":1,"it":310000,"salt","iv","data"}` (base64), data =
+  AES-256-GCM of `{v, at, pname, kids:[{name, target, via, id, token, lv, relay}]}` with a PBKDF2-SHA256 key from the
+  parent's own password (>= 8 chars, never stored). Restore merges by `id` + `via`. Needs WebCrypto (parent app / https).
+- Rules file (2026-11-23, page only, `rx` in `tab-set.js`): `{"kidguard":"rules","v":1,at,from,rules}`; `rules` = the rules
+  JSON without PIN / rev / name / mode / watch / frpIds / tsKeep / running pauses, bonus, lost mode. "Load" and "copy from
+  another kid" (its `GET /state` rules) keep those keys of THIS kid and PUT the whole object.
   scanning one invite: the Durable Object runs one request at a time, the first one wins.
 - `GET /c/<id>/parents` -> `{parents:[{id (12 hex), name, kind, at, seen, me, dev?}], pinKnown}` (`dev` = a watch's last `X-KG-Name`, e.g. "Zepp - Amazfit Bip Max", "Wear OS - Pixel Watch 2"; 2026-11-19); `POST parents {revoke:id}`
   (any parent, the token stops at once) | `{name}` (rename self) | `{rename:id, name}` (2026-11-19: rename a watch, kind "watch" only, else 403).

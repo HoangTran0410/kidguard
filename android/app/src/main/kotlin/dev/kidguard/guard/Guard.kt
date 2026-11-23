@@ -1003,11 +1003,16 @@ class Guard : Service() {
      *  only when a cached fix happened to be fresh (the "sparse track" on the Oppo, 2026-11-07). */
     private fun fixProviders(lm: LocationManager): List<String> {
         val on = { p: String -> runCatching { lm.isProviderEnabled(p) }.getOrDefault(false) }
-        if (Build.VERSION.SDK_INT >= 31 && on(LocationManager.FUSED_PROVIDER)) return listOf(LocationManager.FUSED_PROVIDER)
-        return listOf(LocationManager.NETWORK_PROVIDER, LocationManager.GPS_PROVIDER).filter(on)
+        return LocPace.providers(Build.VERSION.SDK_INT, on(LocationManager.FUSED_PROVIDER), on(LocationManager.NETWORK_PROVIDER), on(LocationManager.GPS_PROVIDER))
     }
 
-    /** Asks every provider for one fix; [onFix] gets the first one (or null after [timeoutMs] / when all fail).
+    /** A validated internet link: without one, network / fused-balanced fixes fail and gps starts with no help (slower). */
+    private fun onlineNow(): Boolean = runCatching {
+        val cm = getSystemService(android.net.ConnectivityManager::class.java)
+        cm.getNetworkCapabilities(cm.activeNetwork)?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+    }.getOrDefault(false)
+
+    /** Asks every provider for one fix; [onFix] gets the first one (or null after [timeoutMs] / when all fail; a coarse one waits while gps still asks).
      *  [each]: [onFix] gets every fix as it comes (network first, then the finer gps one), never null.
      *  Every listener is removed when it ends, so gps never stays on (dumpsys showed hours of gps from leaked one-shots). */
     @SuppressLint("MissingPermission")
@@ -1015,6 +1020,7 @@ class Guard : Service() {
         val ps = fixProviders(lm)
         if (ps.isEmpty()) { if (!each) onFix(null); return }
         var done = false; var left = ps.size
+        var vague: Location? = null   // a coarse first answer (offline fused / network) waits for gps while one is still asking
         val cancel = android.os.CancellationSignal()
         val listeners = mutableListOf<LocationListener>()
         lateinit var timeout: Runnable
@@ -1025,9 +1031,16 @@ class Guard : Service() {
             listeners.forEach { runCatching { lm.removeUpdates(it) } }
             if (!each) onFix(l)
         }
-        fun miss() { if (--left <= 0) end(null) }
-        fun got(l: Location) { if (done) return; if (!each) end(l) else { onFix(l); miss() } }
-        timeout = Runnable { end(null) }
+        fun miss() { if (--left <= 0) end(vague) }
+        fun got(l: Location) {
+            if (done) return
+            if (each) { onFix(l); miss(); return }
+            val age = (android.os.SystemClock.elapsedRealtimeNanos() - l.elapsedRealtimeNanos) / 1_000_000
+            if (age > LocPace.STALE_MS) { miss(); return }   // a cached fix handed back as new is never "where the kid is now"
+            if (left > 1 && LocPace.vague(l.hasAccuracy(), l.accuracy, age)) { if (vague == null || l.accuracy < vague!!.accuracy) vague = l; miss(); return }
+            end(l)
+        }
+        timeout = Runnable { end(vague) }
         work.postDelayed(timeout, timeoutMs)
         for (p in ps) runCatching {
             if (Build.VERSION.SDK_INT >= 30) lm.getCurrentLocation(p, cancel, mainExecutor) { l -> work.post { if (l != null) got(l) else miss() } }
@@ -1053,7 +1066,7 @@ class Guard : Service() {
         fun fallback(): Location? = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER, LocationManager.FUSED_PROVIDER)
             .mapNotNull { p -> runCatching { lm.getLastKnownLocation(p) }.getOrNull() }
             .filter { System.currentTimeMillis() - it.time < 2L * everyMin * 60_000 }.maxByOrNull { it.time }
-        oneFix(lm, 30_000) { got ->
+        oneFix(lm, LocPace.trackTimeoutMs(onlineNow())) { got ->
             trackBusy = false
             val l = got ?: fallback() ?: return@oneFix
             zoneFix(l.latitude, l.longitude, if (l.hasAccuracy()) l.accuracy else 0f)

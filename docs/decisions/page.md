@@ -62,6 +62,7 @@ Index and the rule for adding lines: `README.md`.
 
 - 2026-11-23 Location replay (owner: "play đang nhanh quá", wants prev/next): speed chip 0.5×/1×/2×/4× = 5/15/30/60 min of the day per second (was the whole day in 12 s ≈ 120 min/s), default 1×, kept in localStorage `kg.tlSpd`; a stop plays 8× faster. ‹ › step one moving point at a time, a stop = one step (its start); they pause the replay.
 
+- 2026-11-23 Moving to a new parent phone: ONE QR of fresh one-use invites (10 min) for every relay kid, the new phone joins each with its own token (no token ever in the QR). The owner also wanted a full backup: a file with every kid's token, AES-GCM + PBKDF2 (310k) from a password of its own, nothing stored; restore merges by id + via. Rules file / copy from another kid keeps the target's PIN, pauses, bonus, lost mode, mode, watch (KEEP in `rx`).
 ## Rejected / don't retry
 - Plain fallback line before `color-mix(... var() ...)`: does nothing (value parses, fails at computed time -> transparent). Reversed 555b36f by b05190c: use @supports blocks
 

@@ -19,7 +19,7 @@ for (const f of files) {
 }
 for (const m of html.matchAll(/(?:src|href)="\/ui\/([^"]+)"/g)) if (!files.includes(m[1])) errs.push(`ui/index.html loads /ui/${m[1]}: no such file`);
 
-const MAX_GLOBALS = 864, MAX_LETS = 70;   // 864: vrec (record live camera / screen, 2026-11-21)
+const MAX_GLOBALS = 866, MAX_LETS = 70;   // 866: xfer (move / backup) + rx (rules file / copy), each one module object (2026-11-23)
 let lets = 0, globals = 0;
 // one top-level name per page: the scripts share globals, and a 2nd `function x` silently replaces the 1st
 // (INCIDENT 2026-11-17: chat's pendHtml(job) replaced shell.js's pendHtml(id, html): "NaN MB" under the bank list)

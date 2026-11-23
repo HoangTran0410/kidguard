@@ -91,8 +91,8 @@ Order of writes (first writer wins, `p !in out`):
 - Two independent location timers:
   - Pace (`guard/PowerLogic.kt` `LocPace`, 0.9.18): a good `trackFix` (acc <= 100 m) also becomes pref `loc`, and the 15-min `locate()` is skipped while those are fresh (`locateDue`). 2 same-spot fixes with the screen off + `TYPE_SIGNIFICANT_MOTION` armed (`Guard.pace`) = slow pace (history >= 15 min, locate hourly); the sensor firing or screen on = normal pace and a fix at once. No sensor = never slow.
   - `locate()` (Guard.kt) every 15 min and on `locate`/SOS/check-in commands -> pref `loc` (last fix) + zone events (only if fix < 10 min old, acc <= 300 m).
-  - `trackFix(trackMin)` every `trackMin` (0 = off): one fix (30 s), fallback last-known < 2x interval -> `Store.addTrack` (Store.kt; keep 7 d, <= 2000 pts, stores if moved >= 30 m or gap elapsed, `Track.gapFor`). Pref `track`.
-- `fixProviders`: fused (API 31+) else network+gps together; listeners always removed (no leaked GPS).
+  - `trackFix(trackMin)` every `trackMin` (0 = off): one fix (30 s, 75 s with no validated internet), fallback last-known < 2x interval -> `Store.addTrack` (Store.kt; keep 7 d, <= 2000 pts, stores if moved >= 30 m or gap elapsed, `Track.gapFor`). Pref `track`.
+- `fixProviders` (`LocPace.providers`): fused+gps (API 31+) else network+gps together; a coarse (> 150 m) first answer waits for gps, a fix older than 2 min is dropped (cached Wi-Fi fix offline), timeout 30 s online / 75 s offline (2026-11-23, Wi-Fi-only phone); listeners always removed (no leaked GPS).
 - Zones: `Store.zoneFix` (Store.kt) in/out sets in pref `zin`; baseline after zone list change.
 
 ### 1.7 Device restrictions (Policy.apply) + release undo

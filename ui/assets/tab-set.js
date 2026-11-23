@@ -338,7 +338,7 @@ function setTab(b) {
   ${phone ? `<div class="sec">${t("sec.kid")}</div><div class="list sgl">${M.kid}${sysP}</div>${M.track}` : ""}
   ${secGrp(t("set.security"), [secMix("s-sec", "key-round", t("mx.sec"), t("mx.secD"), [pinP, S.totp], pinP.chip), pairedP])}
   ${secGrp(t("set.conn"), [secMix("s-remote", "route", t("mx.remote"), t("mx.remoteD"), [tsCard(lan), relayP]), tgHtml(), watchCard(), aiCard()], "awaySec", lan ? `<p class="mute" style="margin:0 4px 10px">${t("away.cmp")}</p>` : "")}
-  ${secGrp(phone ? t("sec.setup") : t("sec.kid"), [secMix("s-kid", "user", t("mx.kid"), t("mx.kidD"), [nameP, keepP, redoP, a2P], null), featCard(), updCard(), phone ? null : sysP, secMix("s-adv", "code", t("mx.adv"), t("mx.advD"), [devCard(), shCard()], null)])}
+  ${secGrp(phone ? t("sec.setup") : t("sec.kid"), [secMix("s-kid", "user", t("mx.kid"), t("mx.kidD"), [nameP, keepP, rx.part(), redoP, a2P], null), featCard(), updCard(), phone ? null : sysP, secMix("s-adv", "code", t("mx.adv"), t("mx.advD"), [devCard(), shCard()], null)])}
   ${phone ? M.general : ""}
   <div class="dz" style="margin-top:22px">${secGrp("", [dangerP])}</div>
   </div>`;
@@ -369,6 +369,7 @@ function setTab(b) {
   });
   sysDraw();
   if (APP) $("#f-days").onchange = e => kgCall("setHistoryDays", e.target.value);
+  rx.wire();
   $("#saveName").onclick = () => { cur.name = $("#f-name").value || t("kid"); save(kids); render(); };
   // saved right away (not the 0.5 s debounce) so the button can show sending -> saved / failed
   // forgot the PIN: the new one applies after 24 h, every parent is alerted now, the old PIN anywhere cancels it (CmdGate)
@@ -711,3 +712,57 @@ function bindCopy() {
   const c = $("#copy"), l = $("#goLink"); if (!c || !l) return;
   c.onclick = () => { navigator.clipboard?.writeText(l.textContent).then(() => toast("ok|" + t("copied")), () => toast("warn|" + t("copyFail"))); };
 }
+
+// ---- Rules as a file / from another kid (owner 2026-11-23). Rules are a full replace on the phone, so the result is the
+// whole object: the source's rules + this kid's own live / per-phone keys (KEEP). No PIN, no token in the file.
+const rx = (() => {
+  const KEEP = ["rev", "pin", "pinSet", "pinHash", "pinSalt", "name", "mode", "watch", "frpIds", "tsKeep", "pausedUntil", "bonus", "oneMore",
+    "safeDnsPauseUntil", "vpnPause", "accPause", "devPause", "tcpPause", "passUntil", "lostOn", "lostMsg", "lostPhone", "lostLock", "lostRing"];
+  const clean = r => { const o = structuredClone(r); for (const x of KEEP) delete o[x]; return o; };
+  const others = () => kids.filter(k => k !== cur && !(k.id === cur.id && k.via === cur.via));
+  function part() {
+    const o = others();
+    return { id: "s-rx", icn: "clipboard-copy", title: t("rx.h"), chip: null, body: `<p class="mute">${t("rx.p")}</p>
+      <div class="row" style="flex-wrap:wrap;gap:8px"><button type="button" id="rxSave">${ic("save")} ${t("rx.save")}</button><button type="button" id="rxLoad">${ic("upload")} ${t("rx.load")}</button></div>
+      ${o.length ? `<div class="row" style="margin-top:10px;gap:8px"><select id="rxFrom" class="sp" aria-label="${esc(t("rx.from"))}">${o.map((k, i) => `<option value="${i}">${esc(k.name || t("kid"))}</option>`).join("")}</select><button type="button" id="rxCopy">${ic("clipboard-copy")} ${t("rx.copy")}</button></div>` : ""}
+      <input type="file" id="rxFile" accept=".json,application/json" hidden>` };
+  }
+  async function apply(src, from) {
+    const k = cur, e = edit; if (!k || !e || viewDay) return;
+    if (!(await ask(t("rx.ask", esc(k.name || t("kid")), esc(from)), t("rx.apply"))) || k !== cur || e !== edit) return;
+    const nw = norm({ ...clean(src), ...Object.fromEntries(KEEP.filter(x => x in e).map(x => [x, e[x]])) });
+    for (const x of Object.keys(e)) delete e[x];
+    Object.assign(e, nw);
+    lastSig = ""; render();
+    try { await putRules(k, e); toast("ok|" + t("rx.done")); } catch (er) { toast("err|" + errSentence(er)); }
+  }
+  function wire() {
+    if (!$("#rxSave")) return;
+    $("#rxSave").onclick = () => {
+      if (!edit) return;
+      const text = JSON.stringify({ kidguard: "rules", v: 1, at: Date.now(), from: cur.name || "", rules: clean(edit) }, null, 1);
+      const name = "kidguard-rules-" + String(cur.name || "kid").replace(/[^\p{L}\p{N}_-]+/gu, "-") + ".json";
+      if (APP && window.KGApp && KGApp.dlBegin) {
+        const id = KGApp.dlBegin(name, "application/json"), b = new TextEncoder().encode(text);
+        let s = ""; for (const x of b) s += String.fromCharCode(x);
+        if (!id || !KGApp.dlChunk(id, btoa(s))) { if (id) KGApp.dlEnd(id, "false"); return toast("err|" + t("bk.fail")); }
+        KGApp.dlEnd(id, "true");
+      } else fxSave(new Blob([text], { type: "application/json" }), name);
+      toast("ok|" + t("bk.saved", name));
+    };
+    $("#rxLoad").onclick = () => $("#rxFile").click();
+    $("#rxFile").onchange = async ev => {
+      const f = ev.target.files && ev.target.files[0]; ev.target.value = ""; if (!f) return;
+      let o; try { o = JSON.parse(await f.text()); } catch {}
+      if (!o || o.kidguard !== "rules" || !o.rules || typeof o.rules !== "object" || Array.isArray(o.rules)) return toast("err|" + t("rx.bad"));
+      apply(o.rules, o.from || f.name);
+    };
+    if ($("#rxCopy")) $("#rxCopy").onclick = async () => {
+      const src = others()[+$("#rxFrom").value]; if (!src) return;
+      const b = $("#rxCopy"); b.disabled = true;
+      try { const s = await call(src, "/state", "GET"); if (!s || !s.rules) throw new Error("x"); b.disabled = false; apply(s.rules, src.name || t("kid")); }
+      catch { b.disabled = false; toast("err|" + t("rx.fail", src.name || t("kid"))); }
+    };
+  }
+  return { part, wire };
+})();

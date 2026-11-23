@@ -509,6 +509,7 @@ async function boot() {
   const pc = /^\d{6}$/.test(h.get("pair") || "") ? h.get("pair") : "";
   if (h.has("pair")) history.replaceState(null, "", location.pathname + location.search);
   // from a relay /go link: this phone's own page with the relay token (also a LAN token on the phone)
+  if (h.get("mv")) { const l = xfer.of(h); history.replaceState(null, "", location.pathname + location.search); if (l) { isRelayOrigin = true; return xfer.screen(l); } }
   if (h.get("inv") && h.get("rc")) { const o = inviteOf(h); if (o) { history.replaceState(null, "", location.pathname + location.search); isRelayOrigin = true; return inviteScreen(o); } }
   if (/^[0-9a-f]{48}$/.test(h.get("lk") || "")) return lanFromGo(h);
   if (location.pathname === "/go" && h.get("c") && h.get("k")) return goBoot(h);
@@ -770,6 +771,7 @@ function inviteScreen(o) {
 function addRelayLink(text) {
   try {
     const u = new URL(String(text).trim()), h = new URLSearchParams(u.hash.slice(1));
+    if (u.protocol === "https:" && h.get("mv")) { const l = xfer.of(h); if (!l) return false; xfer.screen(l); return true; }
     if (u.protocol === "https:" && h.get("inv")) { const o = inviteOf(h); if (!o) return false; inviteScreen(o); return true; }
     if (u.protocol !== "https:" || !h.get("c") || !h.get("k")) return false;
     const k = { id: h.get("c"), token: h.get("k"), name: h.get("n") || t("kid"), via: "relay", target: relayOfLink(u, h) };

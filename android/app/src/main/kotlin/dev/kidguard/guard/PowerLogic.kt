@@ -45,6 +45,27 @@ object LocPace {
     /** Slow pace only with the motion sensor armed: without it a child leaving would be noticed late. */
     fun slow(still: Int, motionArmed: Boolean): Boolean = motionArmed && still >= STILL_FIXES
 
+    /**
+     * Providers for one fix. Android 12+: fused AND gps (owner 2026-11-23, Wi-Fi-only kid phone: home -> school 40 min, only
+     * the 2 Wi-Fi ends in the history). getCurrentLocation(fused) asks with balanced quality = Wi-Fi / cell only, never gps,
+     * and Wi-Fi location needs internet: on the road with no SIM nothing answered. Online, the fused answer comes first and
+     * ends the gps one (same cost as before); offline gps is the only one that can answer.
+     */
+    fun providers(sdk: Int, fused: Boolean, network: Boolean, gps: Boolean): List<String> =
+        if (sdk >= 31 && fused) listOfNotNull("fused", "gps".takeIf { gps })
+        else listOfNotNull("network".takeIf { network }, "gps".takeIf { gps })
+
+    /**
+     * A first answer that should wait for gps (when gps is still asking): coarse (cell tower) or old. Offline, the Oppo's
+     * MediaTek network provider hands back its cached Wi-Fi fix from home at once, which used to end the request: the
+     * whole trip was stored as "still at home" (dumpsys 2026-11-23: no real gps fix in 5 h, "gps" last-known = a network one).
+     */
+    fun vague(hasAcc: Boolean, accM: Float, ageMs: Long): Boolean = !hasAcc || accM > Track.BAD_ACC_M || ageMs > STALE_MS
+    const val STALE_MS = 120_000L
+
+    /** History fix timeout: offline gps has no assistance data and needs longer than 30 s (worse in a school bag). */
+    fun trackTimeoutMs(online: Boolean): Long = if (online) 30_000L else 75_000L
+
     fun trackEveryMs(trackMin: Int, slow: Boolean): Long = (if (slow) maxOf(trackMin, SLOW_TRACK_MIN) else trackMin) * 60_000L
 
     /**
