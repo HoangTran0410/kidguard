@@ -64,6 +64,9 @@ object CrashGuard {
                 if (!CrashGuardLogic.survive(e is OutOfMemoryError, loopNow) || CrashGuardLogic.componentCrash(methods(e))) throw e   // default handler: LauncherSafe + Support, process dies
                 Log.e(TAG, "main-thread crash (launcher=$launcher), screens closed, process kept", e)
                 runCatching { Support.recordCrash(app, Thread.currentThread(), e) }
+                // the process lives on (the guard service keeps it up for days): send now, not "on the next start"
+                // (owner 2026-11-24, MIUI "crash mỗi khi mở": nothing ever reached the crash table)
+                runCatching { Support.sendCrash(app) }
                 // a launcher crash still counts (2nd = layout reset, 3rd = SafeHome): the fresh HomeActivity below reads it
                 if (launcher) runCatching { LauncherSafe.crashed(app, e) }
                 closeScreens(app, launcher)

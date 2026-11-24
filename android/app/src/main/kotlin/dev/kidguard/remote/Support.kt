@@ -215,10 +215,12 @@ object Support {
      * tv-remote (app "kidguard"; tv-remote's tools leave these rows out, read with `crashes.py --app kidguard`). Scrubbed like a
      * support report; one random install id (the worker hashes it, caps 20 a day). Kept for the next start when offline.
      */
+    @Volatile private var sending = false
     fun sendCrash(ctx: Context) {
         val app = ctx.applicationContext
         val f = File(app.filesDir, PENDING)
-        if (!f.exists()) return
+        if (!f.exists() || sending) return
+        sending = true
         Thread {
             Thread.sleep(15_000)   // not during the (re)start the crash just caused
             runCatching {
@@ -227,6 +229,7 @@ object Support {
                 val code = post("/v1/crash", crashBody(id, p.optString("kind"), p.optString("msg"), p.optString("stack"))).first
                 if (code in 200..499) f.delete()   // 4xx (bad / enough for today) would fail the same way again
             }.onFailure { if (it is org.json.JSONException) f.delete() }
+            sending = false
         }.apply { isDaemon = true; name = "kg-crash" }.start()
     }
 
