@@ -133,6 +133,8 @@ object Support {
         File(ctx.filesDir, CRASH_FILE).takeIf { it.exists() }?.let { f ->
             sb.append("\n\n--- last crash (").append(java.util.Date(f.lastModified())).append(") ---\n").append(SupportScrub.text(f.readText().take(8000), pkg))
         }
+        // ANR / native crash / killed by a permission change: never reach the crash handler (2026-11-24, ColorOS "crash on open")
+        sb.append("\n\n--- exits (system record) ---\n").append(SupportScrub.text(runCatching { ExitInfo.report(ctx) }.getOrElse { "(${it.javaClass.simpleName})" }.take(6000), pkg))
         val head = sb.toString()
         val log = SupportScrub.text(logcat(), pkg)
         val room = MAX_REPORT - head.length - 40
@@ -219,11 +221,13 @@ object Support {
     fun sendCrash(ctx: Context) {
         val app = ctx.applicationContext
         val f = File(app.filesDir, PENDING)
-        if (!f.exists() || sending) return
+        val exits = android.os.Build.VERSION.SDK_INT >= 30
+        if (!f.exists() && !exits || sending) return
         sending = true
         Thread {
             Thread.sleep(15_000)   // not during the (re)start the crash just caused
-            runCatching {
+            runCatching { sendExits(app) }.onFailure { Log.w("KidGuard", "exit send", it) }
+            if (f.exists()) runCatching {
                 val p = JSONObject(f.readText())
                 val id = prefs(app).getString("crashId", null) ?: java.util.UUID.randomUUID().toString().also { prefs(app).edit().putString("crashId", it).apply() }
                 val code = post("/v1/crash", crashBody(id, p.optString("kind"), p.optString("msg"), p.optString("stack"))).first
@@ -231,6 +235,24 @@ object Support {
             }.onFailure { if (it is org.json.JSONException) f.delete() }
             sending = false
         }.apply { isDaemon = true; name = "kg-crash" }.start()
+    }
+
+    /** ANRs / native crashes / permission-change kills the system recorded since the last send ([ExitLogic.toSend]), one census row each. */
+    private fun sendExits(app: Context) {
+        val p = prefs(app); val seen = p.getLong("exitSeen", 0L); val now = System.currentTimeMillis()
+        val all = ExitInfo.recent(app, 16)
+        val send = ExitLogic.toSend(all.map { it.e }, seen, now)
+        if (send.isEmpty()) { all.maxOfOrNull { it.e.t }?.takeIf { it > seen }?.let { p.edit().putLong("exitSeen", it).apply() }; return }
+        val withTrace = ExitInfo.recent(app, 16, traces = true).associateBy { it.e.t to it.e.reason }
+        val id = p.getString("crashId", null) ?: java.util.UUID.randomUUID().toString().also { p.edit().putString("crashId", it).apply() }
+        for (e in send) {
+            val f = withTrace[e.t to e.reason]
+            val stack = f?.trace?.let { ExitLogic.mainThread(it) } ?: ("imp=" + (f?.imp ?: 0) + " pss=" + ((f?.pssKb ?: 0) / 1024) + "MB " + e.desc)
+            val code = post("/v1/crash", crashBody(id, "exit:" + ExitLogic.name(e.reason), e.desc, stack)).first
+            if (code !in 200..499) return   // offline: the next start tries again
+            p.edit().putLong("exitSeen", e.t).apply()
+        }
+        all.maxOfOrNull { it.e.t }?.let { p.edit().putLong("exitSeen", it).apply() }
     }
 
     private fun crashBody(id: String, kind: String, msg: String, stack: String) = JSONObject()

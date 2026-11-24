@@ -17,7 +17,7 @@ object AutoGrant {
     @Volatile private var running = false
     @Volatile var left = 0          // missing permissions at the last tick (state `autoGrant.left`)
     @Volatile var lastAt = 0L       // last real attempt
-    @Volatile var err = ""          // "" | "no adb"
+    @Volatile var err = ""          // "" | "no adb" | "died"
     /** Epoch ms of the next allowed attempt (state `autoGrant.next`). */
     fun nextAt(): Long = lastTry + EVERY_MS
 
@@ -85,8 +85,19 @@ object AutoGrant {
         return micGrant(ctx).isEmpty()
     }
 
+    /** On disk while a run is in flight: still there at the next start = the run took the process down (see [tick]). */
+    private fun flight(ctx: Context) = ctx.applicationContext.createDeviceProtectedStorageContext().getSharedPreferences("kg_autogrant", Context.MODE_PRIVATE)
+
     fun tick(ctx: Context, now: Long) {
         if (Flavor.HOME || running || now - lastTry < EVERY_MS || SelfSetup.running || !SelfAdb.hasKey(ctx)) return
+        // a grant that kills the app (OEM permission watcher, 2026-11-24 ColorOS "crash on every open") must not run again on
+        // every start: the process died mid-run last time -> wait 6 h like a run that didn't take
+        val died = flight(ctx).getLong("at", 0L)
+        if (died != 0L) {
+            flight(ctx).edit().remove("at").commit()
+            Log.w("KidGuard", "auto-grant: the process ended during the last run (${(now - died) / 1000} s ago): backing off 6 h")
+            err = "died"; lastTry = now + 6 * 3_600_000L - EVERY_MS; return
+        }
         val cmds = missing(ctx)
         left = cmds.size
         // nothing missing / no adb link yet: look again in 2 min, not 30 (the slot is for real attempts; audit 2026-11-13)
@@ -94,6 +105,7 @@ object AutoGrant {
         err = ""; lastAt = now; lastTry = now
         running = true
         val app = ctx.applicationContext
+        flight(app).edit().putLong("at", now).commit()
         Thread({
             try {
                 val out = SelfAdb.run(app, cmds.joinToString("; "))
@@ -104,7 +116,7 @@ object AutoGrant {
                 if (rest < cmds.size) runCatching { Store.of(app).log(R.string.log_autogrant, (cmds.size - rest).toString()) }
                 if (rest > 0) lastTry = now + 6 * 3_600_000L - EVERY_MS   // some won't take (OEM, ColorOS monitoring): back off to 6 h
                 Guard.running?.kick()
-            } finally { running = false }
+            } finally { running = false; flight(app).edit().remove("at").commit() }
         }, "auto-grant").start()
     }
 }
