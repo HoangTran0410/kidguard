@@ -361,6 +361,8 @@
     <string name="ss_code_6">Mã phải đủ 6 số</string>
     <string name="ssa_title">Tự cài KidGuard, không cần máy tính</string>
     <string name="ssa_old">Máy dùng Android %1$s (dưới 11), không tự cài được. Cắm máy tính chạy setup.sh (xem README), hoặc cài lại máy rồi quét mã QR.</string>
+    <string name="dev_block_fl">Family Link đang chặn Tuỳ chọn nhà phát triển, nên chưa cài được. Bố mẹ mở app Family Link, chọn con, vào cài đặt thiết bị và cho phép Tuỳ chọn nhà phát triển. Không có mục đó thì phải dừng giám sát tài khoản của con trước.</string>
+    <string name="dev_block_mdm">Một app quản lý (công ty, trường học) đang chặn Tuỳ chọn nhà phát triển, nên chưa cài được. Gỡ chặn ở app đó trước rồi làm lại.</string>
     <string name="ssa_dev_first">Làm bước 1 trước: bật Tùy chọn nhà phát triển</string>
     <string name="ssa_s1_ok">Đã bật Tuỳ chọn nhà phát triển</string>
     <string name="ssa_s2_ok">Gỡ lỗi không dây đang bật</string>

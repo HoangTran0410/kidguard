@@ -112,6 +112,20 @@ object DevOpts {
     private fun blocked(ctx: Context) = runCatching {
         (ctx.getSystemService(Context.USER_SERVICE) as UserManager).hasUserRestriction(UserManager.DISALLOW_DEBUGGING_FEATURES) }.getOrDefault(false)
 
+    /**
+     * Debugging is blocked by someone else (owner 2026-11-24: a Family Link phone says "Developer options on" but the page
+     * only opens Settings home): the restriction is set and not by us as Device Owner (rule noDebug). Null = not blocked,
+     * else the text that says who blocks it and how to lift it (Family Link named when its child app is installed).
+     */
+    fun blockedBy(ctx: Context): String? {
+        if (!blocked(ctx)) return null
+        val ours = runCatching { Policy.isOwner(ctx) && Policy.dpm(ctx).getUserRestrictions(Policy.admin(ctx)).getBoolean(UserManager.DISALLOW_DEBUGGING_FEATURES) }.getOrDefault(false)
+        if (ours) return null
+        val fl = runCatching { ctx.packageManager.getApplicationInfo(FAMILY_LINK, 0); true }.getOrDefault(false)
+        return ctx.getString(if (fl) R.string.dev_block_fl else R.string.dev_block_mdm)
+    }
+    private const val FAMILY_LINK = "com.google.android.apps.kids.familylinkhelper"
+
     /** Developer options, then USB debugging (the parent's way back after "devOff"). "ok", "not allowed", "blocked" or "failed: ...". */
     fun on(ctx: Context): String {
         if (!canWrite(ctx)) return "not allowed"

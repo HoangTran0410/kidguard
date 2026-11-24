@@ -155,6 +155,7 @@ class SelfSetupActivity : Activity() {
         openDev()
     }
     private fun openDev() {
+        DevOpts.blockedBy(this)?.let { Toasts.show(this, it, true); stepMarks(); return }
         // step 1 skipped: without Developer options the action lands on the Settings home (owner 2026-11-20, new phone); send them to step 1's page
         if (runCatching { Settings.Global.getInt(contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 1 }.getOrDefault(false)) {
             Toasts.show(this, getString(R.string.ssa_dev_first)); open(Settings.ACTION_DEVICE_INFO_SETTINGS); return
@@ -196,7 +197,9 @@ class SelfSetupActivity : Activity() {
         val wifi = SelfAdb.onWifi(this)   // all networks: with a VPN (Tailscale) the active one is not Wi-Fi
         for (m in marks) {
             val (done, note) = when (m.kind) {
-                K_DEV -> g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }
+                // Family Link / a work app: "on" but the page won't open and adb is refused (owner 2026-11-24)
+                K_DEV -> DevOpts.blockedBy(this)?.let { false to it }
+                    ?: g(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED).let { it to if (it) getString(R.string.ssa_s1_ok) else null }
                 // done only once the adb probe passed; the system prop is a hint (meaning unverified), the run waits here if it is off
                 K_PERM -> when {
                     SelfSetup.permMonWait -> false to getString(R.string.ssa_pm_wait)

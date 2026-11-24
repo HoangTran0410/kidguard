@@ -66,6 +66,7 @@ object PermMon {
 
     /** Opens Developer options at the row where the Settings app supports it, says where the row is, arms the outline. */
     fun open(ctx: Context) {
+        DevOpts.blockedBy(ctx)?.let { Toasts.show(ctx, it, true); return }
         if (runCatching { Settings.Global.getInt(ctx.contentResolver, Settings.Global.DEVELOPMENT_SETTINGS_ENABLED, 0) != 1 }.getOrDefault(false)) {
             Toasts.show(ctx, R.string.ssa_dev_first, true)
             Intents.startFirst(ctx, Intent(Settings.ACTION_DEVICE_INFO_SETTINGS), Intent(Settings.ACTION_SETTINGS)); return
