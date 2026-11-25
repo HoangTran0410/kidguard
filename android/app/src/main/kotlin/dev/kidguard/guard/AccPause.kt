@@ -48,6 +48,7 @@ object AccPauseLogic {
     val DEFAULT: Set<String> = setOf(
         "com.VCB",                          // Vietcombank
         "com.vnid",                         // VNeID (owner 2026-11-21: accessibility + debugging + adb port)
+        "com.gsm.customer",                 // Xanh SM (owner 2026-11-25: won't open with accessibility / adb on)
         "com.vnpay.bidv",                   // BIDV SmartBanking
         "com.vietinbank.ipay",              // VietinBank iPay
         "com.vnpay.Agribank3g",             // Agribank E-Mobile Banking

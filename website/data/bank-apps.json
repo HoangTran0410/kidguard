@@ -145,6 +145,14 @@
    "vpn": false,
    "dev": true,
    "tcp": true
+  },
+  {
+   "pkg": "com.gsm.customer",
+   "name": "Xanh SM",
+   "acc": true,
+   "vpn": false,
+   "dev": true,
+   "tcp": true
   }
  ],
  "drop": []

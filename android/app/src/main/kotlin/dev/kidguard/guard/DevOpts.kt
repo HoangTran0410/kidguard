@@ -19,9 +19,10 @@ object DevPauseLogic {
         "vms.com.vn.mymobifone",            // My MobiFone (INKA AppSealing, error 50052; owner 2026-11-11)
         "com.mservice.momotransfer",        // MoMo (owner 2026-11-20: debugging + adb port ticked by default)
         "com.vnid",                         // VNeID (owner 2026-11-21)
+        "com.gsm.customer",                 // Xanh SM (owner 2026-11-25)
     )
     /** Also refuse adb over the network (the port property, not just debugging): owner 2026-11-13, split so others keep the port. */
-    val TCP_DEFAULT: Set<String> = setOf("vms.com.vn.mymobifone", "com.mservice.momotransfer", "com.vnid")
+    val TCP_DEFAULT: Set<String> = setOf("vms.com.vn.mymobifone", "com.mservice.momotransfer", "com.vnid", "com.gsm.customer")
     /** What a phone from before the adb-port list (no `tcpSeen`) already had: anything added later still reaches it once. */
     val TCP_LEGACY: Set<String> = setOf("vms.com.vn.mymobifone")
 }
