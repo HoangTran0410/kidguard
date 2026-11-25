@@ -613,7 +613,9 @@ object Policy {
      * Never lists the never-hide set. Sorted suggest first, then label.
      */
     fun preinstalled(ctx: Context, s: Store, never: Set<String>, mb: (String) -> Int?): JSONArray {
-        if (!isOwner(ctx) && !SelfAdb.ready(ctx) && !SelfAdb.canOpen(ctx)) return JSONArray()
+        // basic: listed once our adb was paired, also while it waits for Wi-Fi / WSS (the state builder only asks then): the
+        // parent picks now and the hide runs when the link comes (owner 2026-11-25: kid on 4G saw an empty list, "0 app")
+        if (!isOwner(ctx) && !SelfAdb.hasKey(ctx)) return JSONArray()
         val pm = ctx.packageManager
         val flags = PackageManager.MATCH_UNINSTALLED_PACKAGES or PackageManager.MATCH_DISABLED_COMPONENTS
         @Suppress("DEPRECATION")
